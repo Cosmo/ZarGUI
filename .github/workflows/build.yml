@@ -17,8 +17,7 @@ jobs:
         with: { name: ZarGUI-macOS, path: build/macos/ZarGUI.app }
 
   windows:
-    # Visual Studio 2022, which WinUI 3 C++ projects (and scripts/setup-windows.ps1) target.
-    runs-on: windows-2022
+    runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix: { arch: [x64, arm64] }

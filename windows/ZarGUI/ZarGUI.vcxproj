@@ -4,15 +4,15 @@
      its libraries in as ZarpackLib and ZstdLib. -->
 <Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
-    <PackagesDir>$(MSBuildThisFileDirectory)..\packages\</PackagesDir>
-    <CppWinRTPackage>$(PackagesDir)Microsoft.Windows.CppWinRT.2.0.250303.1\build\native\</CppWinRTPackage>
-    <WindowsAppSDKPackage>$(PackagesDir)Microsoft.WindowsAppSDK.1.7.260224002\build\native\</WindowsAppSDKPackage>
-    <SDKBuildToolsPackage>$(PackagesDir)Microsoft.Windows.SDK.BuildTools.10.0.26100.9169\build\</SDKBuildToolsPackage>
-    <WebView2Package>$(PackagesDir)Microsoft.Web.WebView2.1.0.2903.40\build\native\</WebView2Package>
+    <ZarGUIPackagesDir>$(MSBuildThisFileDirectory)..\packages\</ZarGUIPackagesDir>
+    <ZarGUICppWinRTDir>$(ZarGUIPackagesDir)Microsoft.Windows.CppWinRT.2.0.250303.1\build\native\</ZarGUICppWinRTDir>
+    <ZarGUIWindowsAppSDKDir>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.1.7.260224002\build\native\</ZarGUIWindowsAppSDKDir>
+    <ZarGUISDKBuildToolsDir>$(ZarGUIPackagesDir)Microsoft.Windows.SDK.BuildTools.10.0.26100.9169\build\</ZarGUISDKBuildToolsDir>
+    <ZarGUIWebView2Dir>$(ZarGUIPackagesDir)Microsoft.Web.WebView2.1.0.2903.40\build\native\</ZarGUIWebView2Dir>
   </PropertyGroup>
-  <Import Project="$(CppWinRTPackage)Microsoft.Windows.CppWinRT.props" Condition="Exists('$(CppWinRTPackage)Microsoft.Windows.CppWinRT.props')" />
-  <Import Project="$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.props" Condition="Exists('$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.props')" />
-  <Import Project="$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.props" Condition="Exists('$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.props')" />
+  <Import Project="$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.props" Condition="Exists('$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.props')" />
+  <Import Project="$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.props" Condition="Exists('$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.props')" />
+  <Import Project="$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.props" Condition="Exists('$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.props')" />
 
   <PropertyGroup Label="Globals">
     <CppWinRTOptimized>true</CppWinRTOptimized>
@@ -152,13 +152,13 @@
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(WebView2Package)Microsoft.Web.WebView2.targets" Condition="Exists('$(WebView2Package)Microsoft.Web.WebView2.targets')" />
-    <Import Project="$(CppWinRTPackage)Microsoft.Windows.CppWinRT.targets" Condition="Exists('$(CppWinRTPackage)Microsoft.Windows.CppWinRT.targets')" />
-    <Import Project="$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.targets" Condition="Exists('$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.targets')" />
-    <Import Project="$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.targets" Condition="Exists('$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.targets')" />
+    <Import Project="$(ZarGUIWebView2Dir)Microsoft.Web.WebView2.targets" Condition="Exists('$(ZarGUIWebView2Dir)Microsoft.Web.WebView2.targets')" />
+    <Import Project="$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.targets" Condition="Exists('$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.targets')" />
+    <Import Project="$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.targets" Condition="Exists('$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.targets')" />
+    <Import Project="$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.targets" Condition="Exists('$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.targets')" />
   </ImportGroup>
   <Target Name="CheckPackages" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.props')"
+    <Error Condition="!Exists('$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.props')"
            Text="NuGet packages are missing. Run: nuget restore windows\ZarGUI\packages.config -PackagesDirectory windows\packages" />
     <Error Condition="'$(ZarpackLib)' == '' or '$(ZstdLib)' == ''"
            Text="Pass the core libraries: /p:ZarpackLib=...\zarpack.lib /p:ZstdLib=...\zstd_static.lib (scripts\build-windows.ps1 does this)." />
