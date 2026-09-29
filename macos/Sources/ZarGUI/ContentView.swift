@@ -3,6 +3,8 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var model: PackModel
+    @Environment(\.openWindow) private var openWindow
+    @AppStorage(Preferences.Key.outputFolder) private var outputFolder = ""
     @State private var isTargeted = false
 
     var body: some View {
@@ -13,9 +15,14 @@ struct ContentView: View {
         .padding(16)
         .frame(minWidth: 340, minHeight: 220)
         .dropDestination(for: URL.self) { urls, _ in
-            model.add(urls)
+            open(urls)
             return true
         } isTargeted: { isTargeted = $0 }
+        // Items dropped on the Dock icon, opened from Finder, or chosen with File > Open.
+        .onOpenURL { open([$0]) }
+        .onReceive(NotificationCenter.default.publisher(for: .openItems)) { note in
+            if let urls = note.object as? [URL] { open(urls) }
+        }
         .alert("Replace existing archive?",
                isPresented: Binding(get: { model.overwriteRequest != nil },
                                     set: { if !$0 { model.confirmOverwrite(false) } }),
@@ -25,6 +32,14 @@ struct ContentView: View {
         } message: { url in
             Text("“\(url.lastPathComponent)” already exists in this location. Replacing it can’t be undone.")
         }
+    }
+
+    /// Archives open in their own window; folders are packed.
+    private func open(_ urls: [URL]) {
+        let archives = urls.filter(\.isZarArchive)
+        archives.forEach { openWindow(value: $0) }
+        let rest = urls.filter { !$0.isZarArchive }
+        if !rest.isEmpty { model.add(rest) }
     }
 
     // MARK: Drop zone
@@ -50,9 +65,11 @@ struct ContentView: View {
                     .font(.system(size: 40, weight: .light))
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
-                Text("Drop a folder to create a .zar archive")
+                Text("Drop a folder or a .zar archive")
                     .font(.headline)
-                Button("Choose Folder…") { model.chooseFoldersToPack() }
+                Text("Folders are archived, archives are opened.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("Open…") { OpenPanel.run() }
             }
         case .packing(let name, let fraction, let file):
             VStack(spacing: 10) {
@@ -83,7 +100,7 @@ struct ContentView: View {
                     .foregroundStyle(.green)
                     .accessibilityHidden(true)
                 Text("Created “\(url.lastPathComponent)”").font(.headline)
-                Text("Drop another folder to continue.")
+                Text("Drop another item to continue.")
                     .font(.caption).foregroundStyle(.secondary)
                 Button("Show in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting([url])
@@ -109,21 +126,19 @@ struct ContentView: View {
     private var outputRow: some View {
         HStack {
             Text("Save in:")
-            Text(model.outputFolder?.abbreviatingWithTilde ?? String(localized: "Next to the original folder"))
+            Text(outputFolder.isEmpty ? String(localized: "Next to the original folder")
+                                      : (outputFolder as NSString).abbreviatingWithTildeInPath)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .truncationMode(.middle)
             Spacer()
-            if model.outputFolder != nil {
-                Button("Reset") { model.outputFolder = nil }
+            if !outputFolder.isEmpty {
+                Button("Reset") { outputFolder = "" }
                     .disabled(model.isBusy)
             }
-            Button("Choose…") { model.chooseOutputFolder() }
+            Button("Choose…") { Preferences.chooseOutputFolder() }
                 .disabled(model.isBusy)
         }
     }
 }
 
-private extension URL {
-    var abbreviatingWithTilde: String { (path as NSString).abbreviatingWithTildeInPath }
-}

@@ -1,47 +1,56 @@
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Graphics;
-using Windows.Storage;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
+using Windows.System;
 
 namespace ZarGUI;
 
 public sealed partial class MainWindow : Window
 {
+    private enum View { Idle, Packing, Done, Failed }
+
     private readonly Queue<string> _queue = new();
-    private PackJob? _job;
+    private ProgressJob? _job;
     private bool _running;
     private bool _overwriteNext;
     private bool _dialogOpen;
-    private string? _outputFolder;
     private string? _lastArchive;
 
-    [DllImport("user32.dll")]
-    private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-    public MainWindow(IEnumerable<string> initialFolders)
+    public MainWindow(IEnumerable<string> initialItems)
     {
         InitializeComponent();
         Title = "ZarGUI";
         SystemBackdrop = new MicaBackdrop();
-
-        // Small utility window: 360 x 220 DIPs of client area.
-        double scale = GetDpiForWindow(WindowNative.GetWindowHandle(this)) / 96.0;
-        AppWindow.ResizeClient(new SizeInt32((int)(360 * scale), (int)(220 * scale)));
-
-        foreach (var f in initialFolders) _queue.Enqueue(f);
-        Root.Loaded += (_, _) => StartNextIfIdle();
+        Shell.ResizeClient(this, 360, 220);
+        Root.Loaded += (_, _) =>
+        {
+            UpdateOutputRow();
+            Open(initialItems);
+        };
+        // Ctrl+, has no named VirtualKey, so it is registered here rather than in XAML.
+        var settingsKey = new KeyboardAccelerator { Key = (VirtualKey)188, Modifiers = VirtualKeyModifiers.Control };
+        settingsKey.Invoked += OnSettingsAccelerator;
+        Root.KeyboardAccelerators.Add(settingsKey);
+        AppSettings.Changed += UpdateOutputRow;
+        Closed += (_, _) => AppSettings.Changed -= UpdateOutputRow;
     }
 
-    // ---- State display -------------------------------------------------
-
-    private enum View { Idle, Packing, Done, Failed }
+    /// <summary>Archives open in their own window; folders are packed.</summary>
+    private void Open(IEnumerable<string> paths)
+    {
+        var folders = new List<string>();
+        foreach (string path in paths)
+        {
+            if (Shell.IsArchive(path)) Shell.OpenArchiveWindow(path);
+            else if (Directory.Exists(path)) folders.Add(path);
+            else if (!_running) ShowFailed("Drop a folder to archive it, or a .zar file to open it.");
+        }
+        foreach (string folder in folders) _queue.Enqueue(folder);
+        UpdateQueueText();
+        StartNextIfIdle();
+    }
 
     private void Show(View view)
     {
@@ -49,6 +58,12 @@ public sealed partial class MainWindow : Window
         PackingPanel.Visibility = view == View.Packing ? Visibility.Visible : Visibility.Collapsed;
         DonePanel.Visibility = view == View.Done ? Visibility.Visible : Visibility.Collapsed;
         FailedPanel.Visibility = view == View.Failed ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ShowFailed(string message)
+    {
+        FailedText.Text = message;
+        Show(View.Failed);
     }
 
     private void SetTargeted(bool targeted)
@@ -59,8 +74,9 @@ public sealed partial class MainWindow : Window
 
     private void UpdateOutputRow()
     {
-        OutputText.Text = _outputFolder ?? "Next to the original folder";
-        ResetButton.Visibility = _outputFolder is null ? Visibility.Collapsed : Visibility.Visible;
+        string? folder = AppSettings.Current.OutputFolder;
+        OutputText.Text = folder ?? "Next to the original folder";
+        ResetButton.Visibility = folder is null ? Visibility.Collapsed : Visibility.Visible;
         ChooseOutputButton.IsEnabled = ResetButton.IsEnabled = !_running;
     }
 
@@ -70,13 +86,11 @@ public sealed partial class MainWindow : Window
         QueueText.Text = $"{_queue.Count} more in queue";
     }
 
-    // ---- Drag and drop -------------------------------------------------
-
     private void OnDragOver(object sender, DragEventArgs e)
     {
         if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;
         e.AcceptedOperation = DataPackageOperation.Copy;
-        e.DragUIOverride.Caption = "Create archive";
+        e.DragUIOverride.Caption = "Archive or open";
         e.DragUIOverride.IsGlyphVisible = false;
         SetTargeted(true);
     }
@@ -90,63 +104,66 @@ public sealed partial class MainWindow : Window
         try
         {
             var items = await e.DataView.GetStorageItemsAsync();
-            var folders = items.OfType<StorageFolder>().Select(f => f.Path).ToList();
-            if (folders.Count == 0)
-            {
-                if (!_running) ShowFailed("Only folders can be archived. Drop a folder instead.");
-                return;
-            }
-            Add(folders);
+            Open(items.Select(item => item.Path));
         }
-        finally { deferral.Complete(); }
-    }
-
-    // ---- Queue ---------------------------------------------------------
-
-    private void Add(IEnumerable<string> folders)
-    {
-        foreach (var f in folders) _queue.Enqueue(f);
-        UpdateQueueText();
-        StartNextIfIdle();
+        finally
+        {
+            deferral.Complete();
+        }
     }
 
     private void StartNextIfIdle()
     {
         if (_running || _dialogOpen || _queue.Count == 0) return;
         string input = _queue.Dequeue();
-        bool overwrite = _overwriteNext;
+        var settings = AppSettings.Current;
+        bool confirmedReplace = _overwriteNext;
         _overwriteNext = false;
+        string? output = confirmedReplace ? settings.OutputFolder : OutputFor(input);
+        bool overwrite = confirmedReplace || settings.ExistingArchive == ExistingArchive.Replace;
+        var options = settings.PackOptions;
         _running = true;
 
         string name = Path.GetFileName(input.TrimEnd('\\', '/'));
-        if (name.Length == 0) name = input;
-        PackingTitle.Text = $"Archiving “{name}”";
+        PackingTitle.Text = $"Archiving “{(name.Length > 0 ? name : input)}”";
         PackingFile.Text = "";
         Bar.IsIndeterminate = true;
         UpdateQueueText();
         UpdateOutputRow();
         Show(View.Packing);
 
-        PackJob? job = null;
-        job = new PackJob((done, total, file) => DispatcherQueue.TryEnqueue(() =>
-        {
-            if (_job != job) return;
-            if (total > 0)
-            {
-                Bar.IsIndeterminate = false;
-                Bar.Value = (double)done / total;
-            }
-            PackingFile.Text = file;
-        }));
+        var job = new ProgressJob(p => DispatcherQueue.TryEnqueue(() => ShowProgress(p)));
         _job = job;
-
-        string? output = _outputFolder;
-        Task.Run(() => job.Run(input, output, overwrite))
-            .ContinueWith(t => DispatcherQueue.TryEnqueue(() => Finished(t.Result, input)),
-                          TaskScheduler.Default);
+        Task.Run(() => Packer.Run(input, output, overwrite, options, job))
+            .ContinueWith(t => DispatcherQueue.TryEnqueue(() => Finished(t.Result, input)), TaskScheduler.Default);
     }
 
-    private async void Finished(PackJob.Outcome outcome, string input)
+    /// <summary>The save folder, or with "Keep both" a free "Name (2).zar"-style path.</summary>
+    private static string? OutputFor(string input)
+    {
+        string? folder = AppSettings.Current.OutputFolder;
+        if (AppSettings.Current.ExistingArchive != ExistingArchive.KeepBoth) return folder;
+        string archive = Packer.ResolveOutput(input, folder);
+        string stem = Path.GetFileNameWithoutExtension(archive);
+        string parent = Path.GetDirectoryName(archive) ?? "";
+        string candidate = archive;
+        for (int n = 2; File.Exists(candidate); n++)
+            candidate = Path.Combine(parent, $"{stem} ({n}).zar");
+        return candidate;
+    }
+
+    private void ShowProgress(ProgressJob.Progress p)
+    {
+        if (!_running) return;
+        if (p.Fraction is double fraction)
+        {
+            Bar.IsIndeterminate = false;
+            Bar.Value = fraction;
+        }
+        PackingFile.Text = p.CurrentFile;
+    }
+
+    private async void Finished(Outcome outcome, string input)
     {
         _running = false;
         _job = null;
@@ -154,19 +171,19 @@ public sealed partial class MainWindow : Window
 
         switch (outcome.Kind)
         {
-            case PackJob.Kind.Success:
+            case OutcomeKind.Success:
                 _lastArchive = outcome.Text;
                 DoneTitle.Text = $"Created “{Path.GetFileName(outcome.Text)}”";
                 Show(View.Done);
                 break;
-            case PackJob.Kind.Cancelled:
+            case OutcomeKind.Cancelled:
                 Show(View.Idle);
                 break;
-            case PackJob.Kind.Exists:
+            case OutcomeKind.Exists:
                 Show(View.Idle);
                 await AskToReplaceAsync(input, outcome.Text);
                 return;
-            case PackJob.Kind.Failure:
+            case OutcomeKind.Failure:
                 ShowFailed(outcome.Text);
                 break;
         }
@@ -186,26 +203,18 @@ public sealed partial class MainWindow : Window
             CloseButtonText = "Cancel",
             DefaultButton = ContentDialogButton.Close,
         };
-        var result = await dialog.ShowAsync();
+        bool replace = await dialog.ShowAsync() == ContentDialogResult.Primary;
         _dialogOpen = false;
-        if (result == ContentDialogResult.Primary)
+        if (replace)
         {
             _overwriteNext = true;
             var rest = _queue.ToList();
             _queue.Clear();
             _queue.Enqueue(input);
-            foreach (var r in rest) _queue.Enqueue(r);
+            foreach (string r in rest) _queue.Enqueue(r);
         }
         StartNextIfIdle();
     }
-
-    private void ShowFailed(string message)
-    {
-        FailedText.Text = message;
-        Show(View.Failed);
-    }
-
-    // ---- Buttons -------------------------------------------------------
 
     private void OnCancel(object sender, RoutedEventArgs e)
     {
@@ -216,44 +225,44 @@ public sealed partial class MainWindow : Window
 
     private void OnShowInExplorer(object sender, RoutedEventArgs e)
     {
-        if (_lastArchive is null) return;
-        Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{_lastArchive}\"")
-        { UseShellExecute = true });
+        if (_lastArchive is not null) Shell.Reveal(_lastArchive);
     }
 
-    private FolderPicker NewPicker()
+    private async void OnChooseFolder(object sender, RoutedEventArgs e)
     {
-        var picker = new FolderPicker { SuggestedStartLocation = PickerLocationId.Desktop };
-        picker.FileTypeFilter.Add("*");
-        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
-        return picker;
+        string? folder = await Shell.PickFolderAsync(this);
+        if (folder is not null) Open(new[] { folder });
     }
 
-    private async void OnChooseFolders(object sender, RoutedEventArgs e) => await ChooseFolderToPackAsync();
+    private async void OnOpenArchive(object sender, RoutedEventArgs e) => await OpenArchivesAsync();
 
-    private async Task ChooseFolderToPackAsync()
-    {
-        var folder = await NewPicker().PickSingleFolderAsync();
-        if (folder is not null) Add(new[] { folder.Path });
-    }
-
-    private void OnChooseFoldersAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    private void OnOpenArchiveAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
     {
         args.Handled = true;
-        _ = ChooseFolderToPackAsync();
+        _ = OpenArchivesAsync();
     }
+
+    private async Task OpenArchivesAsync() => Open(await Shell.PickArchivesAsync(this));
 
     private async void OnChooseOutput(object sender, RoutedEventArgs e)
     {
-        var folder = await NewPicker().PickSingleFolderAsync();
+        string? folder = await Shell.PickFolderAsync(this);
         if (folder is null) return;
-        _outputFolder = folder.Path;
-        UpdateOutputRow();
+        AppSettings.Current.OutputFolder = folder;
+        AppSettings.Current.Save();
     }
 
     private void OnResetOutput(object sender, RoutedEventArgs e)
     {
-        _outputFolder = null;
-        UpdateOutputRow();
+        AppSettings.Current.OutputFolder = null;
+        AppSettings.Current.Save();
+    }
+
+    private void OnOpenSettings(object sender, RoutedEventArgs e) => SettingsWindow.ShowSingle();
+
+    private void OnSettingsAccelerator(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+    {
+        args.Handled = true;
+        SettingsWindow.ShowSingle();
     }
 }

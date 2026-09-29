@@ -10,9 +10,10 @@ public partial class App : Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
-        // Folders passed on the command line (drop on ZarGUI.exe, "Open with", shortcuts).
-        var folders = Environment.GetCommandLineArgs().Skip(1).Where(Directory.Exists).ToList();
-        _window = new MainWindow(folders);
+        // Folders and .zar files passed on the command line (drop on ZarGUI.exe, "Open with", shortcuts).
+        var items = Environment.GetCommandLineArgs().Skip(1).ToList();
+        Shell.CleanDragFolders();
+        _window = new MainWindow(items);
         _window.Activate();
     }
 }

@@ -1,16 +1,7 @@
 import CZarpack
 import Foundation
-import os
 
-/// One packing run. The C callback holds an unretained pointer to this, so it
-/// must outlive the `zarpack_pack` call (it does: `run` blocks).
-final class PackJob: @unchecked Sendable {
-    struct Progress: Sendable {
-        var bytesDone: UInt64
-        var bytesTotal: UInt64
-        var currentFile: String
-    }
-
+enum Packer {
     enum Outcome: Sendable {
         case success(URL)
         case cancelled
@@ -18,37 +9,28 @@ final class PackJob: @unchecked Sendable {
         case failure(String)
     }
 
-    private let cancelFlag = OSAllocatedUnfairLock(initialState: false)
-    private let onProgress: @Sendable (Progress) -> Void
-
-    init(onProgress: @escaping @Sendable (Progress) -> Void) {
-        self.onProgress = onProgress
+    struct Options: Sendable {
+        var skipSystemFiles = true
+        var compressionLevel: Int32 = 0
     }
 
-    func cancel() { cancelFlag.withLock { $0 = true } }
-
-    func run(input: URL, outputFolder: URL?, overwrite: Bool) -> Outcome {
+    /// Blocking; call off the main thread. `output` is a folder or an archive path; nil means next to `input`.
+    static func run(input: URL, output: URL?, overwrite: Bool, options: Options, job: ProgressJob) -> Outcome {
         var outPath = [CChar](repeating: 0, count: 4096)
         var errMsg = [CChar](repeating: 0, count: 1024)
-        let context = Unmanaged.passUnretained(self).toOpaque()
+        let context = Unmanaged.passUnretained(job).toOpaque()
 
-        let status: zarpack_status = withOptionalCString(outputFolder?.path) { output in
+        let status: zarpack_status = withOptionalCString(output?.path) { outputPath in
             input.path.withCString { inputPath in
-                var options = zarpack_options()
-                options.input_dir = inputPath
-                options.output = output
-                options.overwrite = overwrite ? 1 : 0
-                options.user = context
-                options.progress = { progress, user in
-                    guard let progress, let user else { return 0 }
-                    let job = Unmanaged<PackJob>.fromOpaque(user).takeUnretainedValue()
-                    let file = progress.pointee.current_file.map { String(cString: $0) } ?? ""
-                    job.onProgress(Progress(bytesDone: progress.pointee.bytes_done,
-                                            bytesTotal: progress.pointee.bytes_total,
-                                            currentFile: file))
-                    return job.cancelFlag.withLock { $0 } ? 1 : 0
-                }
-                return zarpack_pack(&options, &outPath, outPath.count, &errMsg, errMsg.count)
+                var raw = zarpack_options()
+                raw.input_dir = inputPath
+                raw.output = outputPath
+                raw.overwrite = overwrite ? 1 : 0
+                raw.progress = ProgressJob.callback
+                raw.user = context
+                raw.keep_system_files = options.skipSystemFiles ? 0 : 1
+                raw.compression_level = options.compressionLevel
+                return zarpack_pack(&raw, &outPath, outPath.count, &errMsg, errMsg.count)
             }
         }
 
@@ -58,15 +40,16 @@ final class PackJob: @unchecked Sendable {
         case ZARPACK_CANCELLED:
             return .cancelled
         case ZARPACK_ERR_OUTPUT_EXISTS:
-            return .exists(resolvedOutput(input: input, outputFolder: outputFolder))
+            return .exists(resolvedOutput(input: input, output: output))
         default:
             return .failure(String(cString: errMsg))
         }
     }
 
-    private func resolvedOutput(input: URL, outputFolder: URL?) -> URL {
+    /// Where the core will write for this input and output setting.
+    static func resolvedOutput(input: URL, output: URL?) -> URL {
         var buf = [CChar](repeating: 0, count: 4096)
-        _ = withOptionalCString(outputFolder?.path) { output in
+        _ = withOptionalCString(output?.path) { output in
             input.path.withCString { zarpack_resolve_output($0, output, &buf, buf.count) }
         }
         return URL(fileURLWithPath: String(cString: buf))

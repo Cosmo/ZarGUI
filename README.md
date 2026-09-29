@@ -6,11 +6,16 @@ with random access.
 
 ## Use
 
-1. Drop a folder on the window (or use **Choose Folder…**).
-2. The archive is written next to the folder as `<folder name>.zar`, or into the folder you pick under **Save in**.
+- **Create:** drop a folder on the window. The archive is written next to it as `<folder name>.zar`,
+  or into the folder chosen under **Save in**.
+- **View and extract:** drop a `.zar` file (or open one). It opens in its own window, where you can
+  extract everything or just the selected files and folders.
 
-It shows progress, can be cancelled, asks before replacing an existing archive, and never leaves a partial file behind.
-ZarGUI only creates archives; it does not extract them.
+- **Drag out:** drag files or folders from an archive window to extract just those items.
+
+Both show progress, can be cancelled, ask before replacing existing files, and never leave partial files behind.
+System files such as `.DS_Store`, `._*` and `Thumbs.db` are skipped when archiving. Save location, what to do
+when an archive exists, compression, and extraction behavior can be changed in Settings.
 
 ## Build
 

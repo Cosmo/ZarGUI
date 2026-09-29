@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 
 @MainActor
@@ -11,13 +10,12 @@ final class PackModel: ObservableObject {
     }
 
     @Published var phase: Phase = .idle
-    @Published var outputFolder: URL?
     @Published var queuedCount = 0
     /// Set when an archive already exists; the view asks whether to replace it.
     @Published var overwriteRequest: URL?
 
     private var queue: [URL] = []
-    private var current: PackJob?
+    private var current: ProgressJob?
     private var pendingOverwrite: URL?
     private var isRunning = false
 
@@ -28,7 +26,7 @@ final class PackModel: ObservableObject {
             (try? $0.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) == true
         }
         guard !folders.isEmpty else {
-            if !isRunning { phase = .failed(String(localized: "Only folders can be archived. Drop a folder instead.")) }
+            if !isRunning { phase = .failed(String(localized: "Drop a folder to archive it, or a .zar file to open it.")) }
             return
         }
         queue.append(contentsOf: folders)
@@ -61,28 +59,30 @@ final class PackModel: ObservableObject {
         let input = queue.removeFirst()
         queuedCount = queue.count
         isRunning = true
-        let overwrite = overwriteNext
+        let confirmedReplace = overwriteNext
         overwriteNext = false
-        let output = outputFolder
+        let output = confirmedReplace ? Preferences.outputFolder : Self.output(for: input)
+        let overwrite = confirmedReplace || Preferences.existingArchive == .replace
+        let options = Packer.Options(skipSystemFiles: Preferences.skipSystemFiles,
+                                     compressionLevel: Preferences.compression.level)
         let name = input.lastPathComponent
         phase = .packing(name: name, fraction: nil, file: "")
 
-        let job = PackJob { [weak self] p in
+        let job = ProgressJob { [weak self] p in
             Task { @MainActor in
                 guard let self, case .packing = self.phase else { return }
-                let fraction = p.bytesTotal > 0 ? Double(p.bytesDone) / Double(p.bytesTotal) : nil
-                self.phase = .packing(name: name, fraction: fraction, file: p.currentFile)
+                self.phase = .packing(name: name, fraction: p.fraction, file: p.currentFile)
             }
         }
         current = job
 
         Task.detached(priority: .userInitiated) { [weak self] in
-            let outcome = job.run(input: input, outputFolder: output, overwrite: overwrite)
+            let outcome = Packer.run(input: input, output: output, overwrite: overwrite, options: options, job: job)
             await self?.finished(outcome, input: input)
         }
     }
 
-    private func finished(_ outcome: PackJob.Outcome, input: URL) {
+    private func finished(_ outcome: Packer.Outcome, input: URL) {
         isRunning = false
         current = nil
         switch outcome {
@@ -101,24 +101,18 @@ final class PackModel: ObservableObject {
         startNextIfIdle()
     }
 
-    func chooseOutputFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Choose where to save the archives.")
-        if panel.runModal() == .OK { outputFolder = panel.url }
-    }
-
-    func chooseFoldersToPack() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = true
-        panel.prompt = String(localized: "Archive")
-        panel.message = String(localized: "Choose folders to archive as .zar.")
-        if panel.runModal() == .OK { add(panel.urls) }
+    /// The chosen save folder, or, with "Keep both", a free "Name 2.zar"-style path.
+    private static func output(for input: URL) -> URL? {
+        let folder = Preferences.outputFolder
+        guard Preferences.existingArchive == .keepBoth else { return folder }
+        let archive = Packer.resolvedOutput(input: input, output: folder)
+        let stem = archive.deletingPathExtension().lastPathComponent
+        var candidate = archive
+        var n = 2
+        while FileManager.default.fileExists(atPath: candidate.path) {
+            candidate = archive.deletingLastPathComponent().appendingPathComponent("\(stem) \(n).zar")
+            n += 1
+        }
+        return candidate
     }
 }

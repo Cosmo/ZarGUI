@@ -9,7 +9,7 @@
     <key>CFBundlePackageType</key><string>APPL</string>
     <key>CFBundleShortVersionString</key><string>0.1.0</string>
     <key>CFBundleVersion</key><string>1</string>
-    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSPrincipalClass</key><string>NSApplication</string>
@@ -21,6 +21,13 @@
             <key>LSHandlerRank</key><string>None</string>
             <key>LSItemContentTypes</key>
             <array><string>public.folder</string></array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeName</key><string>ZArchive</string>
+            <key>CFBundleTypeRole</key><string>Viewer</string>
+            <key>LSHandlerRank</key><string>Default</string>
+            <key>CFBundleTypeExtensions</key>
+            <array><string>zar</string></array>
         </dict>
     </array>
 </dict>

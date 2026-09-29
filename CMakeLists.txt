@@ -36,11 +36,25 @@ FetchContent_Declare(zarchive_src
 
 FetchContent_MakeAvailable(zstd zarchive_src)
 
-add_library(zarpack STATIC
-  core/src/zarpack.cpp
+# Applied on every configure (the script is idempotent), so changes to it take effect.
+set(ZARCHIVE_PATCH ${CMAKE_CURRENT_SOURCE_DIR}/cmake/patch-zarchive.cmake)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${ZARCHIVE_PATCH})
+execute_process(COMMAND ${CMAKE_COMMAND} -DSRC=${zarchive_src_SOURCE_DIR} -P ${ZARCHIVE_PATCH}
+                RESULT_VARIABLE patch_result)
+if(NOT patch_result EQUAL 0)
+  message(FATAL_ERROR "Patching ZArchive failed")
+endif()
+
+set(ZARPACK_SOURCES
+  core/src/common.cpp
+  core/src/pack.cpp
+  core/src/archive.cpp
+  core/src/extract.cpp
   ${zarchive_src_SOURCE_DIR}/src/zarchivewriter.cpp
   ${zarchive_src_SOURCE_DIR}/src/zarchivereader.cpp
   ${zarchive_src_SOURCE_DIR}/src/sha_256.c)
+
+add_library(zarpack STATIC ${ZARPACK_SOURCES})
 target_include_directories(zarpack
   PUBLIC core/include
   PRIVATE ${zarchive_src_SOURCE_DIR}/include ${zstd_SOURCE_DIR}/lib)
@@ -48,15 +62,11 @@ target_link_libraries(zarpack PRIVATE libzstd_static)
 
 # Windows: the WinUI app calls the core through zarpack.dll.
 if(WIN32)
-  add_library(zarpack_dll SHARED
-    core/src/zarpack.cpp
-    ${zarchive_src_SOURCE_DIR}/src/zarchivewriter.cpp
-    ${zarchive_src_SOURCE_DIR}/src/zarchivereader.cpp
-    ${zarchive_src_SOURCE_DIR}/src/sha_256.c)
+  add_library(zarpack_dll SHARED ${ZARPACK_SOURCES})
   target_include_directories(zarpack_dll
     PUBLIC core/include
     PRIVATE ${zarchive_src_SOURCE_DIR}/include ${zstd_SOURCE_DIR}/lib)
-  target_compile_definitions(zarpack_dll PRIVATE ZARPACK_SHARED)
+  target_compile_definitions(zarpack_dll PRIVATE ZARPACK_SHARED ZARPACK_BUILDING)
   target_link_libraries(zarpack_dll PRIVATE libzstd_static)
   set_target_properties(zarpack_dll PROPERTIES OUTPUT_NAME zarpack)
 endif()

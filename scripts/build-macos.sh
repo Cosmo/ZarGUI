@@ -7,7 +7,7 @@ export CLANG_MODULE_CACHE_PATH="$B/module-cache"
 export SWIFTPM_MODULECACHE_OVERRIDE="$B/module-cache"
 
 cmake -S "$ROOT" -B "$B/macos-core" -G Ninja -DCMAKE_BUILD_TYPE=Release \
-  -DBUILD_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=13.0
+  -DBUILD_TESTING=OFF -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" -DCMAKE_OSX_DEPLOYMENT_TARGET=14.0
 cmake --build "$B/macos-core"
 
 # Merge the core and zstd into the single libzarpack.a the Swift module links.

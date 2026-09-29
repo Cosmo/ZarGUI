@@ -5,7 +5,7 @@
 
     <Grid x:Name="Root" Padding="16" RowSpacing="12">
         <Grid.KeyboardAccelerators>
-            <KeyboardAccelerator Key="O" Modifiers="Control" Invoked="OnChooseFoldersAccelerator" />
+            <KeyboardAccelerator Key="O" Modifiers="Control" Invoked="OnOpenArchiveAccelerator" />
         </Grid.KeyboardAccelerators>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -29,11 +29,17 @@
                 <FontIcon Glyph="&#xE838;" FontSize="36"
                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                           AutomationProperties.AccessibilityView="Raw" />
-                <TextBlock Text="Drop a folder to create a .zar archive"
+                <TextBlock Text="Drop a folder or a .zar archive"
                            Style="{StaticResource BodyStrongTextBlockStyle}"
                            TextAlignment="Center" TextWrapping="Wrap" />
-                <Button Content="Choose folder…" HorizontalAlignment="Center"
-                        Click="OnChooseFolders" />
+                <TextBlock Text="Folders are archived, archives are opened."
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                    <Button Content="Choose folder…" Click="OnChooseFolder" />
+                    <Button Content="Open archive…" Click="OnOpenArchive" />
+                </StackPanel>
             </StackPanel>
 
             <!-- Packing -->
@@ -64,7 +70,7 @@
                           AutomationProperties.AccessibilityView="Raw" />
                 <TextBlock x:Name="DoneTitle" Style="{StaticResource BodyStrongTextBlockStyle}"
                            TextAlignment="Center" TextWrapping="Wrap" />
-                <TextBlock Text="Drop another folder to continue."
+                <TextBlock Text="Drop another item to continue."
                            Style="{StaticResource CaptionTextBlockStyle}"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                            TextAlignment="Center" />
@@ -94,6 +100,7 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="Save in:" VerticalAlignment="Center" />
             <TextBlock x:Name="OutputText" Grid.Column="1" VerticalAlignment="Center"
@@ -104,6 +111,10 @@
                     Visibility="Collapsed" Click="OnResetOutput" />
             <Button x:Name="ChooseOutputButton" Grid.Column="3" Content="Choose…"
                     Click="OnChooseOutput" />
+            <Button Grid.Column="4" Click="OnOpenSettings" ToolTipService.ToolTip="Settings (Ctrl+,)"
+                    AutomationProperties.Name="Settings">
+                <FontIcon Glyph="&#xE713;" FontSize="16" />
+            </Button>
         </Grid>
     </Grid>
 </Window>
