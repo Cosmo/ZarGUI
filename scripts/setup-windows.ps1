@@ -1,4 +1,4 @@
-# Installs whatever is missing (VS 2022 Build Tools with C++ incl. ARM64, CMake, .NET SDK) via winget,
+# Installs whatever is missing (VS 2022 Build Tools with C++ incl. ARM64, and CMake) via winget,
 # then runs the build. Windows may show an admin (UAC) prompt for the Visual Studio install.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1 [-Arch x64|arm64|both]
 param([ValidateSet('x64','arm64','both')][string]$Arch = 'both')
@@ -37,15 +37,7 @@ if (-not ($haveVC -and $haveArm)) {
 Refresh-Path
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) { Install 'Kitware.CMake' $null; Refresh-Path } else { Write-Host 'CMake: OK' }
 
-# .NET SDK 8 or newer
-$dotnetOk = $false
-if (Get-Command dotnet -ErrorAction SilentlyContinue) {
-    $v = (dotnet --version) 2>$null
-    if ($v -match '^(\d+)\.' -and [int]$Matches[1] -ge 8) { $dotnetOk = $true }
-}
-if (-not $dotnetOk) { Install 'Microsoft.DotNet.SDK.8' $null; Refresh-Path } else { Write-Host '.NET SDK: OK' }
-
-foreach ($tool in 'cmake', 'dotnet') {
+foreach ($tool in @('cmake')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
         throw "$tool was installed but isn't on PATH yet. Close this window, open a new PowerShell, and run the script again."
     }

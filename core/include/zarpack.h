@@ -1,6 +1,6 @@
 /* zarpack: create ZArchive (.zar) files from directories, and list/extract them.
  *
- * Plain C API so it can be called from Swift, C#, or anything else.
+ * Plain C API so it can be called from Swift, Win32 C++, or anything else.
  * All paths are UTF-8. All functions are thread-safe; a single pack call
  * blocks until finished and should be run off the UI thread.
  */
@@ -12,16 +12,6 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#if defined(_WIN32) && defined(ZARPACK_SHARED)
-#  ifdef ZARPACK_BUILDING
-#    define ZARPACK_API __declspec(dllexport)
-#  else
-#    define ZARPACK_API __declspec(dllimport)
-#  endif
-#else
-#  define ZARPACK_API
 #endif
 
 typedef enum zarpack_status {
@@ -62,14 +52,14 @@ typedef struct zarpack_options {
 
 /* Where pack() will write for these inputs. Returns bytes needed including
  * the terminating NUL (like snprintf + 1), or 0 on invalid input. */
-ZARPACK_API size_t zarpack_resolve_output(const char *input_dir, const char *output,
+size_t zarpack_resolve_output(const char *input_dir, const char *output,
                                           char *buf, size_t buf_size);
 
 /* Packs options->input_dir. On success the final path is written to
  * out_path; on failure err_msg holds a human-readable reason. The archive is
  * written to a temporary file and renamed, so failures and cancellation never
  * leave a partial archive behind. Either buffer may be NULL. */
-ZARPACK_API zarpack_status zarpack_pack(const zarpack_options *options,
+zarpack_status zarpack_pack(const zarpack_options *options,
                                         char *out_path, size_t out_path_size,
                                         char *err_msg, size_t err_msg_size);
 
@@ -89,12 +79,12 @@ typedef struct zarpack_entry {
     int is_dir;
 } zarpack_entry;
 
-ZARPACK_API zarpack_status zarpack_open(const char *archive_path, zarpack_archive **out_archive,
+zarpack_status zarpack_open(const char *archive_path, zarpack_archive **out_archive,
                                         char *err_msg, size_t err_msg_size);
-ZARPACK_API void zarpack_close(zarpack_archive *archive);
-ZARPACK_API size_t zarpack_entry_count(const zarpack_archive *archive);
+void zarpack_close(zarpack_archive *archive);
+size_t zarpack_entry_count(const zarpack_archive *archive);
 /* Returns 0 if index is out of range. */
-ZARPACK_API int zarpack_entry_get(const zarpack_archive *archive, size_t index, zarpack_entry *out_entry);
+int zarpack_entry_get(const zarpack_archive *archive, size_t index, zarpack_entry *out_entry);
 
 /* Extracts the given entries into dest_dir: each one becomes dest_dir/<name>
  * (directories with all their contents). Entries inside another selected
@@ -104,15 +94,22 @@ ZARPACK_API int zarpack_entry_get(const zarpack_archive *archive, size_t index, 
  * (err_msg names the first conflict). Files are written to a temporary name
  * and renamed when complete; on failure or cancellation everything created by
  * this call is removed again. Progress reports bytes of file data. */
-ZARPACK_API zarpack_status zarpack_extract(zarpack_archive *archive, const size_t *indices, size_t count,
+zarpack_status zarpack_extract(zarpack_archive *archive, const size_t *indices, size_t count,
                                            const char *dest_dir, int overwrite,
                                            zarpack_progress_fn progress, void *user,
                                            char *err_msg, size_t err_msg_size);
 
+/* Reads up to `length` bytes of a file entry starting at `offset`, for
+ * streaming it elsewhere (e.g. a drag and drop that copies on demand).
+ * Returns the number of bytes read, 0 at the end of the file, or -1 on error
+ * (not a file, or damaged data). Safe to call from several threads. */
+int64_t zarpack_read(zarpack_archive *archive, size_t index, uint64_t offset, void *buffer,
+                                 uint64_t length);
+
 /* Extracts one entry (a directory with all its contents) to exactly
  * target_path, e.g. a location and name chosen by a drag and drop. Same
  * conflict, rollback and progress rules as zarpack_extract. */
-ZARPACK_API zarpack_status zarpack_extract_entry(zarpack_archive *archive, size_t index, const char *target_path,
+zarpack_status zarpack_extract_entry(zarpack_archive *archive, size_t index, const char *target_path,
                                                  int overwrite, zarpack_progress_fn progress, void *user,
                                                  char *err_msg, size_t err_msg_size);
 

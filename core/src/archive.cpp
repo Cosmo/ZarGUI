@@ -105,3 +105,18 @@ extern "C" int zarpack_entry_get(const zarpack_archive *archive, size_t index, z
     *out = {item.path.c_str(), item.path.c_str() + item.nameOffset, item.size, item.parent, item.isDir ? 1 : 0};
     return 1;
 }
+
+extern "C" int64_t zarpack_read(zarpack_archive *archive, size_t index, uint64_t offset, void *buffer,
+                                uint64_t length) {
+    if (!archive || !buffer || index >= archive->items.size()) return -1;
+    const auto &item = archive->items[index];
+    if (item.isDir) return -1;
+    if (offset >= item.size || length == 0) return 0;
+    uint64_t wanted = std::min<uint64_t>(length, item.size - offset);
+    try {
+        uint64_t got = archive->reader->ReadFromFile(item.node, offset, wanted, buffer);
+        return got == wanted ? static_cast<int64_t>(got) : -1;
+    } catch (...) {
+        return -1;
+    }
+}

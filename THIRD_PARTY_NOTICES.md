@@ -63,13 +63,3 @@ ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```
-
-## Microsoft components (Windows download only)
-
-The Windows zip is self-contained and includes Microsoft runtime files. These are **not** covered by
-ZarGUI's MIT license; they remain under Microsoft's terms, included in `licenses/` and in the Windows zip:
-
-- **.NET runtime** (MIT License, <https://github.com/dotnet/runtime>):
-  `dotnet-runtime-LICENSE.txt`, `dotnet-runtime-THIRD-PARTY-NOTICES.txt`, `dotnet-windowsdesktop-LICENSE.txt`
-- **Windows App SDK** (proprietary Microsoft Software License Terms, <https://github.com/microsoft/WindowsAppSDK>):
-  `WindowsAppSDK-LICENSE.txt`, `WindowsAppSDK-NOTICE.txt`. Use of these files is subject to those terms.

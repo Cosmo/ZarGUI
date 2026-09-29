@@ -166,6 +166,24 @@ static void ReadTests(const fs::path &root, const fs::path &archive, const std::
     CHECK(zarpack_extract_entry(a, json, Str(droppedFile).c_str(), 0, nullptr, nullptr, err, sizeof err) == ZARPACK_ERR_OUTPUT_EXISTS);
     CHECK(zarpack_extract_entry(a, zarpack_entry_count(a), Str(droppedFile).c_str(), 0, nullptr, nullptr, err, sizeof err) == ZARPACK_ERR_INPUT);
 
+    // Streaming reads.
+    {
+        const std::string &eboot = files.at("eboot.bin");
+        long idx = FindEntry(a, "eboot.bin");
+        std::string streamed;
+        std::vector<char> chunk(70000); // not a multiple of the 64 KiB block size
+        for (uint64_t off = 0;;) {
+            int64_t n = zarpack_read(a, idx, off, chunk.data(), chunk.size());
+            CHECK(n >= 0);
+            if (n <= 0) break;
+            streamed.append(chunk.data(), static_cast<size_t>(n));
+            off += static_cast<uint64_t>(n);
+        }
+        CHECK(streamed == eboot);
+        CHECK(zarpack_read(a, deep, 0, chunk.data(), chunk.size()) == -1); // a directory
+        CHECK(zarpack_read(a, idx, eboot.size() + 5, chunk.data(), chunk.size()) == 0);
+    }
+
     zarpack_close(a);
 
     // Not an archive.

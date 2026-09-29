@@ -1,8 +1,7 @@
-# Builds the Windows app (self-contained, unpackaged WinUI 3) and zips it.
-#   build\windows\<arch>\ZarGUI.exe
-#   build\ZarGUI-Windows-<arch>.zip   (portable: unzip and run)
+# Builds the Windows app: one self-contained build\windows\<arch>\ZarGUI.exe, zipped to
+# build\ZarGUI-Windows-<arch>.zip. Needs Visual Studio 2022 C++ tools and CMake
+# (scripts\setup-windows.ps1 installs them).
 # Usage: powershell -File scripts\build-windows.ps1 [-Arch x64|arm64|both]   (default: both)
-# Needs: VS 2022 C++ tools (+ ARM64 tools for arm64), CMake, .NET 8+ SDK. scripts\setup-windows.ps1 installs them.
 param([ValidateSet('x64','arm64','both')][string]$Arch = 'both')
 $ErrorActionPreference = 'Stop'
 $root = Resolve-Path (Join-Path $PSScriptRoot '..')
@@ -15,7 +14,7 @@ function Build-One([string]$Target) {
     cmake -S $root -B $core -A $cmakeArch -DBUILD_TESTING=ON
     if ($LASTEXITCODE) { throw "CMake configure failed ($Target)" }
     cmake --build $core --config Release
-    if ($LASTEXITCODE) { throw "Core build failed ($Target)" }
+    if ($LASTEXITCODE) { throw "Build failed ($Target)" }
 
     # Tests only run where the binary can run: x64 anywhere (ARM64 Windows 11 emulates it), arm64 on ARM64 hosts.
     if ($Target -eq 'x64' -or $hostArm) {
@@ -23,18 +22,15 @@ function Build-One([string]$Target) {
         if ($LASTEXITCODE) { throw "Core tests failed ($Target)" }
     }
 
-    $dll = Join-Path $core 'Release\zarpack.dll'
     $out = Join-Path $b "windows\$Target"
-    dotnet publish (Join-Path $root 'windows\ZarGUI\ZarGUI.csproj') -c Release -r "win-$Target" `
-        -p:Platform=$Target -p:ZarpackDll=$dll -o $out
-    if ($LASTEXITCODE) { throw "App build failed ($Target)" }
-
+    New-Item -ItemType Directory -Force $out | Out-Null
+    Copy-Item (Join-Path $core 'Release\ZarGUI.exe') $out
     Copy-Item (Join-Path $root 'LICENSE'), (Join-Path $root 'THIRD_PARTY_NOTICES.md') $out
-    Copy-Item (Join-Path $root 'licenses') (Join-Path $out 'licenses') -Recurse -Force
+
     $zip = Join-Path $b "ZarGUI-Windows-$Target.zip"
     if (Test-Path $zip) { Remove-Item $zip }
     Compress-Archive -Path (Join-Path $out '*') -DestinationPath $zip
-    Write-Host "Built $out\ZarGUI.exe"
+    Write-Host "Built $out\ZarGUI.exe ($([math]::Round((Get-Item "$out\ZarGUI.exe").Length / 1KB)) KB)"
     Write-Host "Zipped $zip"
 }
 

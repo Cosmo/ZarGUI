@@ -1,0 +1,52 @@
+#pragma code_page(65001)
+
+#include <windows.h>
+#include "src/resource.h"
+
+VS_VERSION_INFO VERSIONINFO
+ FILEVERSION 0,2,0,0
+ PRODUCTVERSION 0,2,0,0
+ FILEOS VOS_NT_WINDOWS32
+ FILETYPE VFT_APP
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"
+        BEGIN
+            VALUE "FileDescription", "ZarGUI"
+            VALUE "FileVersion", "0.2.0"
+            VALUE "InternalName", "ZarGUI"
+            VALUE "LegalCopyright", "MIT License"
+            VALUE "OriginalFilename", "ZarGUI.exe"
+            VALUE "ProductName", "ZarGUI"
+            VALUE "ProductVersion", "0.2.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+
+IDD_SETTINGS DIALOGEX 0, 0, 300, 196
+STYLE DS_SHELLFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Settings"
+FONT 9, "MS Shell Dlg", 400, 0, 1
+BEGIN
+    GROUPBOX        "Archiving", -1, 7, 7, 286, 106
+    LTEXT           "Save archives in:", -1, 15, 22, 70, 8
+    LTEXT           "", IDC_OUTPUT_PATH, 90, 22, 140, 8, SS_PATHELLIPSIS | SS_NOPREFIX
+    PUSHBUTTON      "Choose…", IDC_OUTPUT_CHOOSE, 234, 19, 52, 14
+    PUSHBUTTON      "Reset", IDC_OUTPUT_RESET, 234, 35, 52, 14
+    LTEXT           "If an archive already exists:", -1, 15, 56, 100, 8
+    COMBOBOX        IDC_EXISTING, 150, 54, 136, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Compression:", -1, 15, 74, 100, 8
+    COMBOBOX        IDC_COMPRESSION, 150, 72, 136, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "Skip system files (Thumbs.db, desktop.ini, .DS_Store, ._ files)", IDC_SKIP_SYSTEM, 15, 93, 271, 10
+    GROUPBOX        "Extracting", -1, 7, 118, 286, 50
+    LTEXT           "Extract to:", -1, 15, 134, 100, 8
+    COMBOBOX        IDC_DESTINATION, 150, 132, 136, 60, CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    AUTOCHECKBOX    "Show extracted items in File Explorer", IDC_REVEAL, 15, 151, 271, 10
+    DEFPUSHBUTTON   "OK", IDOK, 188, 175, 50, 14
+    PUSHBUTTON      "Cancel", IDCANCEL, 243, 175, 50, 14
+END
