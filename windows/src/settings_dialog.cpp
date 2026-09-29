@@ -5,8 +5,6 @@
 
 namespace {
 
-constexpr wchar_t kNextToFolder[] = L"Next to the original folder";
-
 void FillCombo(HWND dialog, int id, std::initializer_list<const wchar_t *> items, int selected) {
     HWND combo = GetDlgItem(dialog, id);
     for (const wchar_t *item : items) SendMessageW(combo, CB_ADDSTRING, 0, reinterpret_cast<LPARAM>(item));
@@ -18,13 +16,7 @@ int ComboSelection(HWND dialog, int id) {
     return selected < 0 ? 0 : selected;
 }
 
-void ShowOutput(HWND dialog, const std::wstring &folder) {
-    SetDlgItemTextW(dialog, IDC_OUTPUT_PATH, folder.empty() ? kNextToFolder : folder.c_str());
-    EnableWindow(GetDlgItem(dialog, IDC_OUTPUT_RESET), !folder.empty());
-}
-
 void Load(HWND dialog, const Settings &s) {
-    ShowOutput(dialog, s.outputFolder);
     FillCombo(dialog, IDC_EXISTING, {L"Ask", L"Replace it", L"Keep both"}, static_cast<int>(s.existingArchive));
     FillCombo(dialog, IDC_COMPRESSION, {L"Faster", L"Standard", L"Smaller"}, static_cast<int>(s.compression));
     CheckDlgButton(dialog, IDC_SKIP_SYSTEM, s.skipSystemFiles ? BST_CHECKED : BST_UNCHECKED);
@@ -50,16 +42,6 @@ INT_PTR CALLBACK Procedure(HWND dialog, UINT message, WPARAM wParam, LPARAM lPar
         return TRUE;
     case WM_COMMAND:
         switch (LOWORD(wParam)) {
-        case IDC_OUTPUT_CHOOSE:
-            if (auto folder = PickFolder(dialog, L"Choose where to save new archives")) {
-                settings->outputFolder = *folder;
-                ShowOutput(dialog, *folder);
-            }
-            return TRUE;
-        case IDC_OUTPUT_RESET:
-            settings->outputFolder.clear();
-            ShowOutput(dialog, {});
-            return TRUE;
         case IDOK:
             Store(dialog, *settings);
             EndDialog(dialog, IDOK);

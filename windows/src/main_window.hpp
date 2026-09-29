@@ -1,7 +1,7 @@
 #pragma once
 
+#include "common.hpp"
 #include "job.hpp"
-#include "window.hpp"
 
 #include <deque>
 #include <string>
@@ -9,52 +9,44 @@
 
 class FileDropTarget;
 
-/// The drop window: folders dropped on it are archived, .zar files open in an ArchiveWindow.
-class MainWindow final : public Window {
+/// The main window, a standard dialog: folders dropped on it are archived,
+/// .zar files open in an ArchiveWindow.
+class MainWindow {
 public:
     static MainWindow *Show(const std::vector<std::wstring> &items);
 
     /// Folders are queued for archiving; archives open in their own window.
     void Open(const std::vector<std::wstring> &paths);
-    void OpenArchives();
 
 private:
-    enum class View { Idle, Packing, Done, Failed };
-
     MainWindow() = default;
-    ~MainWindow() override;
+    MainWindow(const MainWindow &) = delete;
+    MainWindow &operator=(const MainWindow &) = delete;
+    ~MainWindow();
 
-    LRESULT HandleMessage(UINT message, WPARAM wParam, LPARAM lParam) override;
-    void CreateControls();
-    void UpdateFonts();
-    void Layout();
-    void Paint();
-    RECT DropZone() const;
-
-    void ShowView(View view, const std::wstring &title, const std::wstring &caption);
-    void UpdateSaveRow();
-    void UpdateQueueText();
+    static INT_PTR CALLBACK Procedure(HWND dialog, UINT message, WPARAM wParam, LPARAM lParam);
+    INT_PTR HandleMessage(UINT message, WPARAM wParam, LPARAM lParam);
+    void OnInit();
     void OnCommand(int id);
-    void OnProgress();
-    void OnDone();
+
+    void ShowSaveLocation();
+    void ChooseSaveFolder();
+    void SetStatus(const std::wstring &text);
 
     void StartNextIfIdle();
     std::wstring OutputFor(const std::wstring &input) const;
+    void OnProgress();
+    void OnDone();
 
-    View view_ = View::Idle;
-    bool highlighted_ = false;
+    HWND hwnd_ = nullptr;
+    HWND status_ = nullptr;
+    HICON icon_ = nullptr;
     FileDropTarget *dropTarget_ = nullptr;
-    HFONT font_ = nullptr;
-    HFONT boldFont_ = nullptr;
-
-    HWND title_ = nullptr, caption_ = nullptr, queueText_ = nullptr, progress_ = nullptr;
-    HWND primary_ = nullptr, secondary_ = nullptr;
-    HWND saveLabel_ = nullptr, savePath_ = nullptr, reset_ = nullptr, choose_ = nullptr, settings_ = nullptr;
 
     std::deque<std::wstring> queue_;
     Job job_;
+    ProgressWindow progress_;
     std::wstring current_;
-    std::wstring lastArchive_;
     bool replaceNext_ = false;
     bool dialogOpen_ = false;
 };

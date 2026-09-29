@@ -9,15 +9,13 @@
 
 class Archive;
 
-/// Accepts files and folders dropped from File Explorer.
+/// Accepts files and folders dropped from File Explorer, showing the shell's drag image over the window.
 class FileDropTarget final : public IDropTarget {
 public:
-    struct Callbacks {
-        std::function<void(bool)> highlight;
-        std::function<void(std::vector<std::wstring>)> drop;
-    };
+    using DropHandler = std::function<void(std::vector<std::wstring>)>;
 
-    explicit FileDropTarget(Callbacks callbacks) : callbacks_(std::move(callbacks)) {}
+    FileDropTarget(HWND window, DropHandler drop);
+    ~FileDropTarget();
 
     HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **object) override;
     ULONG STDMETHODCALLTYPE AddRef() override;
@@ -29,7 +27,9 @@ public:
     HRESULT STDMETHODCALLTYPE Drop(IDataObject *data, DWORD keys, POINTL point, DWORD *effect) override;
 
 private:
-    Callbacks callbacks_;
+    HWND window_;
+    DropHandler drop_;
+    IDropTargetHelper *helper_ = nullptr;
     LONG refs_ = 1;
     bool accepts_ = false;
 };

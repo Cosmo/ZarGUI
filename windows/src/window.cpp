@@ -1,6 +1,6 @@
 #include "window.hpp"
 
-void Window::Create(const wchar_t *className, const std::wstring &title, int width, int height) {
+void Window::Create(const wchar_t *className, const std::wstring &title, int width, int height, HMENU menu) {
     HINSTANCE instance = GetModuleHandleW(nullptr);
     WNDCLASSEXW wc{sizeof(wc)};
     if (!GetClassInfoExW(instance, className, &wc)) {
@@ -14,12 +14,12 @@ void Window::Create(const wchar_t *className, const std::wstring &title, int wid
     }
     constexpr DWORD style = WS_OVERLAPPEDWINDOW;
     CreateWindowExW(0, className, title.c_str(), style, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-                    nullptr, nullptr, instance, this);
+                    nullptr, menu, instance, this);
     if (!hwnd_) return;
 
     UINT dpi = GetDpiForWindow(hwnd_);
     RECT rect{0, 0, MulDiv(width, dpi, 96), MulDiv(height, dpi, 96)};
-    AdjustWindowRectExForDpi(&rect, style, FALSE, 0, dpi);
+    AdjustWindowRectExForDpi(&rect, style, menu != nullptr, 0, dpi);
     SetWindowPos(hwnd_, nullptr, 0, 0, rect.right - rect.left, rect.bottom - rect.top,
                  SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
 }

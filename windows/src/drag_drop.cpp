@@ -304,6 +304,15 @@ private:
 
 } // namespace
 
+FileDropTarget::FileDropTarget(HWND window, DropHandler drop) : window_(window), drop_(std::move(drop)) {
+    if (FAILED(CoCreateInstance(CLSID_DragDropHelper, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&helper_))))
+        helper_ = nullptr;
+}
+
+FileDropTarget::~FileDropTarget() {
+    if (helper_) helper_->Release();
+}
+
 HRESULT FileDropTarget::QueryInterface(REFIID riid, void **object) {
     if (riid == IID_IUnknown || riid == IID_IDropTarget) {
         *object = static_cast<IDropTarget *>(this);
@@ -322,28 +331,32 @@ ULONG FileDropTarget::Release() {
     return refs;
 }
 
-HRESULT FileDropTarget::DragEnter(IDataObject *data, DWORD, POINTL, DWORD *effect) {
+HRESULT FileDropTarget::DragEnter(IDataObject *data, DWORD, POINTL point, DWORD *effect) {
     FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
     accepts_ = data->QueryGetData(&format) == S_OK;
     *effect = accepts_ ? DROPEFFECT_COPY : DROPEFFECT_NONE;
-    if (accepts_) callbacks_.highlight(true);
+    POINT pt{point.x, point.y};
+    if (helper_) helper_->DragEnter(window_, data, &pt, *effect);
     return S_OK;
 }
 
-HRESULT FileDropTarget::DragOver(DWORD, POINTL, DWORD *effect) {
+HRESULT FileDropTarget::DragOver(DWORD, POINTL point, DWORD *effect) {
     *effect = accepts_ ? DROPEFFECT_COPY : DROPEFFECT_NONE;
+    POINT pt{point.x, point.y};
+    if (helper_) helper_->DragOver(&pt, *effect);
     return S_OK;
 }
 
 HRESULT FileDropTarget::DragLeave() {
-    callbacks_.highlight(false);
+    if (helper_) helper_->DragLeave();
     return S_OK;
 }
 
-HRESULT FileDropTarget::Drop(IDataObject *data, DWORD, POINTL, DWORD *effect) {
-    callbacks_.highlight(false);
+HRESULT FileDropTarget::Drop(IDataObject *data, DWORD, POINTL point, DWORD *effect) {
     *effect = accepts_ ? DROPEFFECT_COPY : DROPEFFECT_NONE;
-    if (accepts_) callbacks_.drop(DroppedPaths(data));
+    POINT pt{point.x, point.y};
+    if (helper_) helper_->Drop(data, &pt, *effect);
+    if (accepts_) drop_(DroppedPaths(data));
     return S_OK;
 }
 

@@ -97,10 +97,16 @@ std::wstring Quoted(const std::wstring &s) { return L"“" + s + L"”"; }
 
 int Scale(HWND hwnd, int value) { return MulDiv(value, static_cast<int>(GetDpiForWindow(hwnd)), 96); }
 
-HFONT CreateUiFont(HWND hwnd, bool bold) {
+HFONT CreateUiFont(HWND hwnd) {
     NONCLIENTMETRICSW metrics{sizeof(metrics)};
-    SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, GetDpiForWindow(hwnd));
-    if (bold) metrics.lfMessageFont.lfWeight = FW_SEMIBOLD;
+    if (!SystemParametersInfoForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, GetDpiForWindow(hwnd))) {
+        LOGFONTW font{};
+        font.lfHeight = -MulDiv(9, static_cast<int>(GetDpiForWindow(hwnd)), 72);
+        font.lfWeight = FW_NORMAL;
+        font.lfQuality = CLEARTYPE_QUALITY;
+        wcscpy_s(font.lfFaceName, L"Segoe UI");
+        return CreateFontIndirectW(&font);
+    }
     return CreateFontIndirectW(&metrics.lfMessageFont);
 }
 
@@ -120,19 +126,6 @@ HWND CreateChild(HWND parent, const wchar_t *className, const wchar_t *text, DWO
 }
 
 void SetText(HWND hwnd, const std::wstring &text) { SetWindowTextW(hwnd, text.c_str()); }
-
-void SetProgress(HWND bar, double fraction) {
-    LONG_PTR style = GetWindowLongPtrW(bar, GWL_STYLE);
-    bool marquee = fraction < 0;
-    if (marquee != ((style & PBS_MARQUEE) != 0)) {
-        SetWindowLongPtrW(bar, GWL_STYLE, marquee ? style | PBS_MARQUEE : style & ~PBS_MARQUEE);
-        SendMessageW(bar, PBM_SETMARQUEE, marquee, 0);
-    }
-    if (!marquee) {
-        SendMessageW(bar, PBM_SETRANGE32, 0, 1000);
-        SendMessageW(bar, PBM_SETPOS, static_cast<WPARAM>(fraction * 1000), 0);
-    }
-}
 
 std::wstring GetText(HWND hwnd) {
     std::wstring text(GetWindowTextLengthW(hwnd) + 1, L'\0');
@@ -207,8 +200,53 @@ void ShowError(HWND owner, const std::wstring &title, const std::wstring &messag
                nullptr);
 }
 
+void ShowAbout(HWND owner) {
+    TaskDialog(owner, nullptr, L"About ZarGUI", L"ZarGUI 0.2.0",
+               L"Creates, browses and extracts ZArchive (.zar) files.\n\n"
+               L"MIT License. Uses ZArchive and Zstandard; see THIRD_PARTY_NOTICES.md.",
+               TDCBF_OK_BUTTON, TD_INFORMATION_ICON, nullptr);
+}
+
 void WindowOpened() { openWindows++; }
 
 void WindowClosed() {
     if (--openWindows == 0) PostQuitMessage(0);
+}
+
+void CloseAllWindows() {
+    EnumThreadWindows(
+        GetCurrentThreadId(),
+        [](HWND hwnd, LPARAM) {
+            if (!GetWindow(hwnd, GW_OWNER) && IsWindowVisible(hwnd)) PostMessageW(hwnd, WM_CLOSE, 0, 0);
+            return TRUE;
+        },
+        0);
+}
+
+void ProgressWindow::Open(HWND owner, const std::wstring &title, const std::wstring &line) {
+    Close();
+    if (FAILED(CoCreateInstance(CLSID_ProgressDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog_)))) {
+        dialog_ = nullptr;
+        return;
+    }
+    dialog_->SetTitle(title.c_str());
+    dialog_->SetLine(1, line.c_str(), FALSE, nullptr);
+    dialog_->SetCancelMsg(L"Cancelling\u2026", nullptr);
+    dialog_->StartProgressDialog(owner, nullptr, PROGDLG_NORMAL | PROGDLG_AUTOTIME | PROGDLG_NOMINIMIZE, nullptr);
+    dialog_->Timer(PDTIMER_RESET, nullptr);
+}
+
+void ProgressWindow::Update(uint64_t done, uint64_t total, const std::wstring &detail) {
+    if (!dialog_) return;
+    if (total > 0) dialog_->SetProgress64(done, total);
+    dialog_->SetLine(2, detail.c_str(), TRUE, nullptr);
+}
+
+bool ProgressWindow::Cancelled() const { return dialog_ && dialog_->HasUserCancelled(); }
+
+void ProgressWindow::Close() {
+    if (!dialog_) return;
+    dialog_->StopProgressDialog();
+    dialog_->Release();
+    dialog_ = nullptr;
 }

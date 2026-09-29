@@ -16,7 +16,7 @@ protected:
     virtual ~Window() = default;
 
     /// Creates the window with a client area of `width` x `height` at 96 DPI, scaled for the monitor.
-    void Create(const wchar_t *className, const std::wstring &title, int width, int height);
+    void Create(const wchar_t *className, const std::wstring &title, int width, int height, HMENU menu = nullptr);
     virtual LRESULT HandleMessage(UINT message, WPARAM wParam, LPARAM lParam);
 
     HWND hwnd_ = nullptr;

@@ -4,13 +4,14 @@
 #include "window.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 class Archive;
 
-/// Lists an archive's contents with folder navigation, and extracts or drags items out.
+/// Lists an archive's contents Explorer-style with folder navigation, and extracts or drags items out.
 class ArchiveWindow final : public Window {
 public:
     /// Opens `path`; shows an error instead if it isn't a valid archive.
@@ -33,11 +34,15 @@ private:
 
     LRESULT HandleMessage(UINT message, WPARAM wParam, LPARAM lParam) override;
     LRESULT OnNotify(NMHDR *header);
+    void OnCommand(int id);
     void CreateControls();
+    void CreateToolbar();
     void UpdateFonts();
     void Layout();
+    void UpdateCommands();
 
     void Navigate(int64_t folder);
+    void GoUp();
     void OpenSelected();
     void ShowContextMenu(POINT screen);
     std::vector<size_t> Selection() const;
@@ -51,7 +56,6 @@ private:
     void StartExtraction(Extraction extraction, bool overwrite);
     void OnProgress();
     void OnDone();
-    void SetExtracting(bool extracting);
 
     std::shared_ptr<Archive> archive_;
     int64_t folder_ = -1; // -1: the archive's top level
@@ -60,9 +64,9 @@ private:
     std::wstring displayText_; // backs the text handed to the list view
 
     HFONT font_ = nullptr;
-    HWND up_ = nullptr, location_ = nullptr, extractSelected_ = nullptr, extractAll_ = nullptr;
-    HWND list_ = nullptr, status_ = nullptr, progress_ = nullptr, cancel_ = nullptr;
+    HWND toolbar_ = nullptr, address_ = nullptr, list_ = nullptr, status_ = nullptr;
 
     Job job_;
+    ProgressWindow progress_;
     Extraction extraction_;
 };

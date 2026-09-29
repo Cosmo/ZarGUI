@@ -2,6 +2,7 @@
 
 #include "archive.hpp"
 #include "drag_drop.hpp"
+#include "resource.h"
 #include "settings.hpp"
 
 #include <shellapi.h>
@@ -13,9 +14,8 @@
 
 namespace {
 
-enum Control { kUp = 100, kExtractSelected, kExtractAll, kList, kCancel };
-enum MenuItem { kMenuOpen = 1, kMenuExtract };
 enum Column { kName, kSize, kType };
+constexpr UINT_PTR kCancelTimer = 1;
 
 } // namespace
 
@@ -27,7 +27,8 @@ void ArchiveWindow::Show(const std::wstring &path) {
         return;
     }
     auto *window = new ArchiveWindow(std::move(archive));
-    window->Create(L"ZarGUI.Archive", FileName(path) + L" - ZarGUI", 640, 440);
+    window->Create(L"ZarGUI.Archive", FileName(path) + L" - ZarGUI", 680, 460,
+                   LoadMenuW(GetModuleHandleW(nullptr), MAKEINTRESOURCEW(IDR_ARCHIVE_MENU)));
     if (window->hwnd_) ShowWindow(window->hwnd_, SW_SHOWNORMAL);
 }
 
@@ -44,11 +45,12 @@ LRESULT ArchiveWindow::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
         Navigate(-1);
         return 0;
     case WM_SIZE:
+        SendMessageW(status_, WM_SIZE, 0, 0);
         Layout();
         return 0;
     case WM_GETMINMAXINFO: {
         auto *info = reinterpret_cast<MINMAXINFO *>(lParam);
-        info->ptMinTrackSize = {Scale(hwnd_, 480), Scale(hwnd_, 280)};
+        info->ptMinTrackSize = {Scale(hwnd_, 420), Scale(hwnd_, 260)};
         return 0;
     }
     case WM_DPICHANGED: {
@@ -62,26 +64,19 @@ LRESULT ArchiveWindow::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
     case WM_SETFOCUS:
         SetFocus(list_);
         return 0;
-    case WM_CTLCOLORSTATIC:
-        SetTextColor(reinterpret_cast<HDC>(wParam),
-                     GetSysColor(reinterpret_cast<HWND>(lParam) == status_ ? COLOR_GRAYTEXT : COLOR_WINDOWTEXT));
-        SetBkMode(reinterpret_cast<HDC>(wParam), TRANSPARENT);
-        return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
-    case WM_CTLCOLORBTN:
-        return reinterpret_cast<LRESULT>(GetSysColorBrush(COLOR_WINDOW));
+    case WM_INITMENUPOPUP:
+        UpdateCommands();
+        return 0;
     case WM_COMMAND:
-        switch (LOWORD(wParam)) {
-        case kUp: Navigate(folder_ < 0 ? -1 : archive_->entries()[static_cast<size_t>(folder_)].parent); break;
-        case kExtractSelected: ExtractSelected(); break;
-        case kExtractAll: ExtractAll(); break;
-        case kCancel: job_.Cancel(); break;
-        case IDOK: OpenSelected(); break; // Enter in the list
-        }
+        OnCommand(LOWORD(wParam));
         return 0;
     case WM_NOTIFY:
         return OnNotify(reinterpret_cast<NMHDR *>(lParam));
     case WM_CONTEXTMENU:
         if (reinterpret_cast<HWND>(wParam) == list_) ShowContextMenu({GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)});
+        return 0;
+    case WM_TIMER:
+        if (wParam == kCancelTimer && progress_.Cancelled()) job_.Cancel();
         return 0;
     case WM_APP_PROGRESS:
         OnProgress();
@@ -93,8 +88,26 @@ LRESULT ArchiveWindow::HandleMessage(UINT message, WPARAM wParam, LPARAM lParam)
         job_.Cancel();
         DestroyWindow(hwnd_);
         return 0;
+    case WM_DESTROY:
+        progress_.Close();
+        return 0;
     }
     return Window::HandleMessage(message, wParam, lParam);
+}
+
+void ArchiveWindow::OnCommand(int id) {
+    switch (id) {
+    case IDM_UP: GoUp(); break;
+    case IDM_OPEN_FOLDER:
+    case IDOK: OpenSelected(); break; // IDOK: Enter in the list
+    case IDM_EXTRACT_SELECTED: ExtractSelected(); break;
+    case IDM_EXTRACT_ALL: ExtractAll(); break;
+    case IDM_CLOSE: PostMessageW(hwnd_, WM_CLOSE, 0, 0); break;
+    case IDM_ABOUT: ShowAbout(hwnd_); break;
+    case IDM_OPEN:
+        for (const auto &path : PickArchives(hwnd_)) Show(path);
+        break;
+    }
 }
 
 LRESULT ArchiveWindow::OnNotify(NMHDR *header) {
@@ -112,7 +125,7 @@ LRESULT ArchiveWindow::OnNotify(NMHDR *header) {
         return 0;
     case LVN_KEYDOWN: {
         auto *key = reinterpret_cast<NMLVKEYDOWN *>(header);
-        if (key->wVKey == VK_BACK) SendMessageW(hwnd_, WM_COMMAND, kUp, 0);
+        if (key->wVKey == VK_BACK) GoUp();
         if (key->wVKey == 'A' && (GetKeyState(VK_CONTROL) & 0x8000))
             ListView_SetItemState(list_, -1, LVIS_SELECTED, LVIS_SELECTED);
         return 0;
@@ -129,23 +142,21 @@ LRESULT ArchiveWindow::OnNotify(NMHDR *header) {
 }
 
 void ArchiveWindow::CreateControls() {
-    up_ = CreateChild(hwnd_, WC_BUTTONW, L"↑ Up", WS_TABSTOP | BS_PUSHBUTTON, kUp);
-    location_ = CreateChild(hwnd_, WC_STATICW, L"", SS_NOPREFIX | SS_CENTERIMAGE | SS_PATHELLIPSIS);
-    extractSelected_ = CreateChild(hwnd_, WC_BUTTONW, L"Extract selected…", WS_TABSTOP | BS_PUSHBUTTON,
-                                   kExtractSelected);
-    extractAll_ = CreateChild(hwnd_, WC_BUTTONW, L"Extract all…", WS_TABSTOP | BS_PUSHBUTTON, kExtractAll);
+    CreateToolbar();
+    address_ = CreateChild(hwnd_, WC_EDITW, L"", ES_READONLY | ES_AUTOHSCROLL, 0, WS_EX_CLIENTEDGE);
 
     list_ = CreateChild(hwnd_, WC_LISTVIEWW, L"",
-                        WS_TABSTOP | LVS_REPORT | LVS_OWNERDATA | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS, kList);
+                        WS_TABSTOP | LVS_REPORT | LVS_OWNERDATA | LVS_SHOWSELALWAYS | LVS_SHAREIMAGELISTS);
     SetWindowTheme(list_, L"Explorer", nullptr);
     ListView_SetExtendedListViewStyle(list_, LVS_EX_FULLROWSELECT | LVS_EX_DOUBLEBUFFER);
     SHFILEINFOW info{};
-    auto images = reinterpret_cast<HIMAGELIST>(SHGetFileInfoW(
-        L"file", FILE_ATTRIBUTE_NORMAL, &info, sizeof(info), SHGFI_USEFILEATTRIBUTES | SHGFI_SYSICONINDEX | SHGFI_SMALLICON));
+    auto images = reinterpret_cast<HIMAGELIST>(SHGetFileInfoW(L"file", FILE_ATTRIBUTE_NORMAL, &info, sizeof(info),
+                                                              SHGFI_USEFILEATTRIBUTES | SHGFI_SYSICONINDEX |
+                                                                  SHGFI_SMALLICON));
     ListView_SetImageList(list_, images, LVSIL_SMALL);
 
     struct { const wchar_t *title; int width; int format; } columns[] = {
-        {L"Name", 300, LVCFMT_LEFT}, {L"Size", 90, LVCFMT_RIGHT}, {L"Type", 170, LVCFMT_LEFT}};
+        {L"Name", 300, LVCFMT_LEFT}, {L"Size", 90, LVCFMT_RIGHT}, {L"Type", 180, LVCFMT_LEFT}};
     for (int i = 0; i < 3; i++) {
         LVCOLUMNW column{LVCF_TEXT | LVCF_WIDTH | LVCF_FMT};
         column.pszText = const_cast<wchar_t *>(columns[i].title);
@@ -154,49 +165,66 @@ void ArchiveWindow::CreateControls() {
         ListView_InsertColumn(list_, i, &column);
     }
 
-    status_ = CreateChild(hwnd_, WC_STATICW, L"", SS_NOPREFIX | SS_CENTERIMAGE | SS_ENDELLIPSIS);
-    progress_ = CreateChild(hwnd_, PROGRESS_CLASSW, L"", 0);
-    cancel_ = CreateChild(hwnd_, WC_BUTTONW, L"Cancel", WS_TABSTOP | BS_PUSHBUTTON, kCancel);
-    ShowWindow(progress_, SW_HIDE);
-    ShowWindow(cancel_, SW_HIDE);
+    status_ = CreateChild(hwnd_, STATUSCLASSNAMEW, L"", SBARS_SIZEGRIP);
     UpdateFonts();
+}
+
+/// A text-only toolbar, like the command bars of Windows' own apps.
+void ArchiveWindow::CreateToolbar() {
+    toolbar_ = CreateChild(hwnd_, TOOLBARCLASSNAMEW, L"",
+                           TBSTYLE_FLAT | TBSTYLE_LIST | TBSTYLE_TOOLTIPS | CCS_NODIVIDER | CCS_NORESIZE |
+                               CCS_NOPARENTALIGN);
+    SendMessageW(toolbar_, TB_BUTTONSTRUCTSIZE, sizeof(TBBUTTON), 0);
+    SendMessageW(toolbar_, TB_SETIMAGELIST, 0, 0);
+    TBBUTTON buttons[] = {
+        {I_IMAGENONE, IDM_UP, TBSTATE_ENABLED, BTNS_AUTOSIZE | BTNS_SHOWTEXT, {}, 0,
+         reinterpret_cast<INT_PTR>(L"Up")},
+        {0, 0, TBSTATE_ENABLED, BTNS_SEP, {}, 0, 0},
+        {I_IMAGENONE, IDM_EXTRACT_ALL, TBSTATE_ENABLED, BTNS_AUTOSIZE | BTNS_SHOWTEXT, {}, 0,
+         reinterpret_cast<INT_PTR>(L"Extract all…")},
+        {I_IMAGENONE, IDM_EXTRACT_SELECTED, TBSTATE_ENABLED, BTNS_AUTOSIZE | BTNS_SHOWTEXT, {}, 0,
+         reinterpret_cast<INT_PTR>(L"Extract selected…")},
+    };
+    SendMessageW(toolbar_, TB_ADDBUTTONSW, ARRAYSIZE(buttons), reinterpret_cast<LPARAM>(buttons));
 }
 
 void ArchiveWindow::UpdateFonts() {
     HFONT old = font_;
     font_ = CreateUiFont(hwnd_);
     ApplyFont(hwnd_, font_);
+    SendMessageW(toolbar_, TB_AUTOSIZE, 0, 0);
     if (old) DeleteObject(old);
 }
 
 void ArchiveWindow::Layout() {
-    RECT client;
+    RECT client, bar;
     GetClientRect(hwnd_, &client);
-    int margin = Scale(hwnd_, 8), gap = Scale(hwnd_, 6), row = Scale(hwnd_, 28);
-    int width = client.right - 2 * margin;
+    GetWindowRect(status_, &bar);
+    int statusHeight = bar.bottom - bar.top;
+    int margin = Scale(hwnd_, 4);
 
-    int upWidth = Scale(hwnd_, 64), allWidth = Scale(hwnd_, 100), selectedWidth = Scale(hwnd_, 130);
-    int x = margin;
-    MoveWindow(up_, x, margin, upWidth, row, TRUE);
-    x += upWidth + gap;
-    int right = client.right - margin;
-    MoveWindow(extractAll_, right - allWidth, margin, allWidth, row, TRUE);
-    right -= allWidth + gap;
-    MoveWindow(extractSelected_, right - selectedWidth, margin, selectedWidth, row, TRUE);
-    right -= selectedWidth + gap;
-    MoveWindow(location_, x, margin, std::max(0, right - x), row, TRUE);
+    SIZE toolbarSize{};
+    SendMessageW(toolbar_, TB_GETMAXSIZE, 0, reinterpret_cast<LPARAM>(&toolbarSize));
+    int rowHeight = std::max<int>(toolbarSize.cy, Scale(hwnd_, 24));
+    MoveWindow(toolbar_, 0, margin, toolbarSize.cx, rowHeight, TRUE);
+    int addressX = toolbarSize.cx + margin;
+    MoveWindow(address_, addressX, margin + (rowHeight - Scale(hwnd_, 22)) / 2,
+               std::max<int>(0, client.right - addressX - margin), Scale(hwnd_, 22), TRUE);
 
-    int top = margin + row + gap;
-    int bottom = client.bottom - margin - row;
-    MoveWindow(list_, margin, top, width, std::max(0, bottom - gap - top), TRUE);
+    int top = margin + rowHeight + margin;
+    MoveWindow(list_, 0, top, client.right, std::max<int>(0, client.bottom - statusHeight - top), TRUE);
+}
 
-    bool extracting = IsWindowVisible(cancel_) != FALSE;
-    int cancelWidth = Scale(hwnd_, 80), barWidth = Scale(hwnd_, 160);
-    int statusWidth = extracting ? width - cancelWidth - barWidth - 2 * gap : width;
-    MoveWindow(status_, margin, bottom, statusWidth, row, TRUE);
-    MoveWindow(progress_, margin + statusWidth + gap, bottom + (row - Scale(hwnd_, 8)) / 2, barWidth, Scale(hwnd_, 8),
-               TRUE);
-    MoveWindow(cancel_, client.right - margin - cancelWidth, bottom, cancelWidth, row, TRUE);
+void ArchiveWindow::UpdateCommands() {
+    bool busy = job_.Running();
+    bool selected = ListView_GetSelectedCount(list_) > 0;
+    SendMessageW(toolbar_, TB_ENABLEBUTTON, IDM_UP, MAKELONG(folder_ >= 0, 0));
+    SendMessageW(toolbar_, TB_ENABLEBUTTON, IDM_EXTRACT_ALL, MAKELONG(!busy, 0));
+    SendMessageW(toolbar_, TB_ENABLEBUTTON, IDM_EXTRACT_SELECTED, MAKELONG(!busy && selected, 0));
+    HMENU menu = GetMenu(hwnd_);
+    EnableMenuItem(menu, IDM_UP, folder_ >= 0 ? MF_ENABLED : MF_GRAYED);
+    EnableMenuItem(menu, IDM_EXTRACT_ALL, !busy ? MF_ENABLED : MF_GRAYED);
+    EnableMenuItem(menu, IDM_EXTRACT_SELECTED, !busy && selected ? MF_ENABLED : MF_GRAYED);
 }
 
 void ArchiveWindow::Navigate(int64_t folder) {
@@ -207,12 +235,17 @@ void ArchiveWindow::Navigate(int64_t folder) {
     if (!shown_.empty()) ListView_SetItemState(list_, 0, LVIS_FOCUSED, LVIS_FOCUSED);
     InvalidateRect(list_, nullptr, TRUE);
 
-    std::wstring location;
+    std::wstring location = archive_->path();
+    std::wstring inside;
     for (int64_t f = folder; f >= 0; f = archive_->entries()[static_cast<size_t>(f)].parent)
-        location = L" › " + archive_->entries()[static_cast<size_t>(f)].name + location;
-    SetText(location_, FileName(archive_->path()) + location);
-    EnableWindow(up_, folder >= 0);
+        inside = L"\\" + archive_->entries()[static_cast<size_t>(f)].name + inside;
+    SetText(address_, location + inside);
     UpdateStatus();
+    UpdateCommands();
+}
+
+void ArchiveWindow::GoUp() {
+    if (folder_ >= 0) Navigate(archive_->entries()[static_cast<size_t>(folder_)].parent);
 }
 
 void ArchiveWindow::OpenSelected() {
@@ -239,23 +272,27 @@ void ArchiveWindow::ShowContextMenu(POINT screen) {
     }
     HMENU menu = CreatePopupMenu();
     bool folder = selection.size() == 1 && archive_->entries()[selection[0]].isDir;
-    if (folder) AppendMenuW(menu, MF_STRING, kMenuOpen, L"Open");
-    AppendMenuW(menu, MF_STRING | (job_.Running() ? MF_GRAYED : 0), kMenuExtract, L"Extract…");
-    if (folder) SetMenuDefaultItem(menu, kMenuOpen, FALSE);
-    int chosen = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, screen.x, screen.y, 0, hwnd_, nullptr);
+    if (folder) {
+        AppendMenuW(menu, MF_STRING, IDM_OPEN_FOLDER, L"&Open");
+        SetMenuDefaultItem(menu, IDM_OPEN_FOLDER, FALSE);
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    }
+    AppendMenuW(menu, MF_STRING | (job_.Running() ? MF_GRAYED : 0), IDM_EXTRACT_SELECTED, L"&Extract…");
+    TrackPopupMenu(menu, TPM_RIGHTBUTTON, screen.x, screen.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);
-    if (chosen == kMenuOpen) OpenSelected();
-    if (chosen == kMenuExtract) ExtractSelected();
 }
 
 void ArchiveWindow::UpdateStatus() {
+    if (!status_) return; // list notifications can arrive while the controls are being created
+    UpdateCommands();
     if (job_.Running()) return;
     UINT selected = ListView_GetSelectedCount(list_);
     size_t files = archive_->fileCount();
-    SetText(status_, selected > 0 ? std::to_wstring(selected) + L" of " + std::to_wstring(shown_.size()) + L" selected"
-                                  : std::to_wstring(files) + (files == 1 ? L" file, " : L" files, ") +
-                                        FormatBytes(archive_->totalSize()));
-    EnableWindow(extractSelected_, selected > 0 && !job_.Running());
+    SetText(status_, selected > 0 ? std::to_wstring(selected) + (selected == 1 ? L" item selected" : L" items selected")
+                                  : std::to_wstring(shown_.size()) + (shown_.size() == 1 ? L" item" : L" items") +
+                                        L"    (archive: " + std::to_wstring(files) +
+                                        (files == 1 ? L" file, " : L" files, ") + FormatBytes(archive_->totalSize()) +
+                                        L")");
 }
 
 const ArchiveWindow::FileType &ArchiveWindow::TypeOf(size_t entry) {
@@ -280,7 +317,7 @@ void ArchiveWindow::GetDisplayInfo(NMLVDISPINFOW *info) {
     if (!(item.mask & LVIF_TEXT)) return;
     switch (item.iSubItem) {
     case kName: displayText_ = e.name; break;
-    case kSize: displayText_ = FormatBytes(e.size); break;
+    case kSize: displayText_ = e.isDir ? L"" : FormatBytes(e.size); break; // like File Explorer
     case kType: displayText_ = TypeOf(entry).name; break;
     default: displayText_.clear();
     }
@@ -311,10 +348,13 @@ void ArchiveWindow::ExtractAll() {
 
 void ArchiveWindow::StartExtraction(Extraction extraction, bool overwrite) {
     extraction_ = std::move(extraction);
-    SetExtracting(true);
     auto archive = archive_;
     std::vector<size_t> indices = extraction_.indices;
     std::string destination = ToUtf8(extraction_.destination);
+
+    SetText(status_, L"Extracting to " + extraction_.destination + L"…");
+    progress_.Open(hwnd_, L"Extracting", L"Extracting from " + Quoted(FileName(archive_->path())));
+    SetTimer(hwnd_, kCancelTimer, 200, nullptr);
     job_.Start(hwnd_, [=](zarpack_progress_fn progress, void *user, std::string &message) {
         std::string error(1024, '\0');
         zarpack_status status = zarpack_extract(archive->handle(), indices.data(), indices.size(), destination.c_str(),
@@ -322,38 +362,24 @@ void ArchiveWindow::StartExtraction(Extraction extraction, bool overwrite) {
         message = error.c_str();
         return status;
     });
-}
-
-void ArchiveWindow::SetExtracting(bool extracting) {
-    ShowWindow(progress_, extracting ? SW_SHOWNA : SW_HIDE);
-    ShowWindow(cancel_, extracting ? SW_SHOWNA : SW_HIDE);
-    EnableWindow(extractAll_, !extracting);
-    EnableWindow(extractSelected_, !extracting && ListView_GetSelectedCount(list_) > 0);
-    if (extracting) {
-        SetProgress(progress_, -1);
-        SetText(status_, L"Extracting…");
-    }
-    Layout();
+    UpdateCommands();
 }
 
 void ArchiveWindow::OnProgress() {
     Job::Progress p = job_.Latest();
-    if (!IsWindowVisible(progress_)) return;
-    if (p.total > 0) SetProgress(progress_, static_cast<double>(p.done) / static_cast<double>(p.total));
-    SetText(status_, p.file.empty() ? L"Extracting…" : L"Extracting " + p.file);
+    progress_.Update(p.done, p.total, p.file);
 }
 
 void ArchiveWindow::OnDone() {
+    KillTimer(hwnd_, kCancelTimer);
+    progress_.Close();
     std::wstring message;
     zarpack_status status = job_.Finish(message);
-    SetExtracting(false);
     UpdateStatus();
     switch (status) {
     case ZARPACK_OK:
+        SetText(status_, L"Extracted to " + extraction_.reveal);
         if (Settings::Load().revealAfterExtract) RevealInExplorer(extraction_.reveal);
-        else if (Confirm(hwnd_, L"Extraction complete", L"Extracted to " + Quoted(FileName(extraction_.reveal)) + L".",
-                         L"Show in Explorer", L"Close"))
-            RevealInExplorer(extraction_.reveal);
         break;
     case ZARPACK_ERR_OUTPUT_EXISTS:
         if (Confirm(hwnd_, L"Replace existing items?",
@@ -362,6 +388,7 @@ void ArchiveWindow::OnDone() {
             StartExtraction(extraction_, true);
         break;
     case ZARPACK_CANCELLED:
+        SetText(status_, L"Cancelled.");
         break;
     default:
         ShowError(hwnd_, L"Couldn’t extract", message);
