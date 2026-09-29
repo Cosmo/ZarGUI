@@ -24,7 +24,7 @@ The core is C++20 (`core/`), wrapped by a native UI on each platform: SwiftUI/Ap
 - **macOS** (Xcode, CMake, Ninja): `./scripts/build-macos.sh` produces `build/macos/ZarGUI.app` (universal, arm64 + x86_64).
 - **Windows:** run `scripts\build-windows.cmd`. It installs missing tools (Visual Studio C++ build tools with the
   Windows App SDK C++ tools, CMake, nuget) through winget, builds, and writes `build\ZarGUI-Windows-x64.zip` and
-  `build\ZarGUI-Windows-arm64.zip`. The app uses the Windows App Runtime 1.7 and offers to install it on first start
+  `build\ZarGUI-Windows-arm64.zip`. The app uses the Windows App Runtime (2.x) and offers to install it on first start
   if the PC doesn't have it yet.
 - **Core tests:** `cmake -S . -B build/core && cmake --build build/core && ctest --test-dir build/core`
 

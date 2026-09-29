@@ -72,8 +72,8 @@
                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </Grid>
 
-        <ListView x:Name="List" Grid.Row="3" Padding="8,0" SelectionMode="Extended" CanDragItems="True"
-                  DragItemsStarting="OnDragItemsStarting" DoubleTapped="OnDoubleTapped" RightTapped="OnRightTapped"
+        <ListView x:Name="List" Grid.Row="3" Padding="8,0" SelectionMode="Extended"
+                  DoubleTapped="OnDoubleTapped" RightTapped="OnRightTapped"
                   SelectionChanged="OnSelectionChanged" KeyDown="OnListKeyDown"
                   AutomationProperties.Name="Archive contents">
             <ListView.ContextFlyout>

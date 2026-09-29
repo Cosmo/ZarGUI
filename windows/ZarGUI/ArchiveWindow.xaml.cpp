@@ -13,6 +13,7 @@
 #include "settings.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 using namespace winrt;
 using namespace Microsoft::UI::Xaml;
@@ -44,6 +45,15 @@ ArchiveWindow::ArchiveWindow() {
     ApplyWindowStyle(m_inner.as<Window>(), AppTitleBar());
     ResizeWindow(m_inner.as<Window>(), 760, 540);
     Closed([this](auto &&, auto &&) { job_.Cancel(); });
+
+    // Items are dragged out with the Windows shell (see StartDragOut), so watch the mouse even
+    // after list items have handled these events for selection.
+    List().AddHandler(UIElement::PointerPressedEvent(),
+                      box_value(PointerEventHandler{this, &ArchiveWindow::OnListPointerPressed}), true);
+    List().AddHandler(UIElement::PointerMovedEvent(),
+                      box_value(PointerEventHandler{this, &ArchiveWindow::OnListPointerMoved}), true);
+    List().AddHandler(UIElement::PointerReleasedEvent(),
+                      box_value(PointerEventHandler{this, &ArchiveWindow::OnListPointerReleased}), true);
 }
 
 HWND ArchiveWindow::Hwnd() const { return WindowHandle(m_inner); }
@@ -168,12 +178,58 @@ void ArchiveWindow::OnMenuOpening(IInspectable const &, IInspectable const &) {
 
 // Dragging items out
 
-void ArchiveWindow::OnDragItemsStarting(IInspectable const &, DragItemsStartingEventArgs const &e) {
-    // WinUI's own drag can only offer real files. Explorer-style virtual files let the drop
-    // target read straight from the archive, so hand the drag to the shell instead.
-    e.Cancel(true);
+// WinUI's own item drag can only offer real files. Explorer-style virtual files let the drop target
+// read straight from the archive, so the drag is started with the Windows shell once the mouse moves
+// past the system drag threshold, with WinUI's pointer capture released first.
+
+ZarGUI::ArchiveItem ArchiveWindow::ItemAt(IInspectable const &source) {
+    auto element = source.try_as<FrameworkElement>();
+    return element ? element.DataContext().try_as<ZarGUI::ArchiveItem>() : nullptr;
+}
+
+void ArchiveWindow::OnListPointerPressed(IInspectable const &, PointerRoutedEventArgs const &e) {
+    pressedItem_ = nullptr;
+    if (e.Pointer().PointerDeviceType() == Microsoft::UI::Input::PointerDeviceType::Touch) return; // touch scrolls
+    auto point = e.GetCurrentPoint(List());
+    if (!point.Properties().IsLeftButtonPressed()) return;
+    pressedItem_ = ItemAt(e.OriginalSource());
+    pressedAt_ = point.Position();
+}
+
+void ArchiveWindow::OnListPointerMoved(IInspectable const &, PointerRoutedEventArgs const &e) {
+    if (!pressedItem_) return;
+    auto point = e.GetCurrentPoint(List());
+    if (!point.Properties().IsLeftButtonPressed()) {
+        pressedItem_ = nullptr;
+        return;
+    }
+    UINT dpi = GetDpiForWindow(Hwnd());
+    double scale = dpi / 96.0;
+    double dx = std::abs(point.Position().X - pressedAt_.X) * scale;
+    double dy = std::abs(point.Position().Y - pressedAt_.Y) * scale;
+    if (dx < GetSystemMetricsForDpi(SM_CXDRAG, dpi) && dy < GetSystemMetricsForDpi(SM_CYDRAG, dpi)) return;
+    e.Handled(true);
+    List().ReleasePointerCaptures();
+    StartDragOut();
+}
+
+void ArchiveWindow::OnListPointerReleased(IInspectable const &, PointerRoutedEventArgs const &) {
+    pressedItem_ = nullptr;
+}
+
+/// Drags the pressed item, or the whole selection if the pressed item is part of it (like File Explorer).
+void ArchiveWindow::StartDragOut() {
+    auto pressed = pressedItem_;
+    pressedItem_ = nullptr;
+    if (!archive_ || !pressed) return;
+    uint32_t position = 0;
     std::vector<size_t> dragged;
-    for (auto const &item : e.Items()) dragged.push_back(static_cast<size_t>(item.as<ZarGUI::ArchiveItem>().Index()));
+    if (List().SelectedItems().IndexOf(pressed, position)) {
+        dragged = Selection();
+    } else {
+        List().SelectedItem(pressed);
+        dragged = {static_cast<size_t>(pressed.Index())};
+    }
     std::wstring error;
     if (!DragArchiveEntries(Hwnd(), archive_, archive_->TopLevel(dragged), error) && !error.empty())
         ShowResult(InfoBarSeverity::Warning, L"Can’t drag these items", hstring(error), {});

@@ -1,18 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- WinUI 3 app (C++/WinRT), unpackaged and framework-dependent: it uses the Windows App Runtime
+<!-- WinUI 3 app (C++/WinRT), unpackaged and framework-dependent: it uses the Windows App Runtime (2.x)
      installed on the PC. Build with scripts\build-windows.ps1, which builds the core first and passes
      its libraries in as ZarpackLib and ZstdLib. -->
 <Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- NuGet packages (packages.config). Windows App SDK 2.x ships as components; only the ones used are
+       imported (not AI, ML, Search or Widgets). Each follows NuGet's build\native (or build\) convention. -->
   <PropertyGroup>
     <ZarGUIPackagesDir>$(MSBuildThisFileDirectory)..\packages\</ZarGUIPackagesDir>
-    <ZarGUICppWinRTDir>$(ZarGUIPackagesDir)Microsoft.Windows.CppWinRT.2.0.250303.1\build\native\</ZarGUICppWinRTDir>
-    <ZarGUIWindowsAppSDKDir>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.1.7.260224002\build\native\</ZarGUIWindowsAppSDKDir>
-    <ZarGUISDKBuildToolsDir>$(ZarGUIPackagesDir)Microsoft.Windows.SDK.BuildTools.10.0.26100.9169\build\</ZarGUISDKBuildToolsDir>
-    <ZarGUIWebView2Dir>$(ZarGUIPackagesDir)Microsoft.Web.WebView2.1.0.2903.40\build\native\</ZarGUIWebView2Dir>
+    <ZarGUICppWinRT>$(ZarGUIPackagesDir)Microsoft.Windows.CppWinRT.2.0.250303.1\build\native\Microsoft.Windows.CppWinRT</ZarGUICppWinRT>
+    <ZarGUIBuildTools>$(ZarGUIPackagesDir)Microsoft.Windows.SDK.BuildTools.10.0.26100.4654\build\Microsoft.Windows.SDK.BuildTools</ZarGUIBuildTools>
+    <ZarGUIBuildToolsMsix>$(ZarGUIPackagesDir)Microsoft.Windows.SDK.BuildTools.MSIX.1.7.251221100\build\Microsoft.Windows.SDK.BuildTools.MSIX</ZarGUIBuildToolsMsix>
+    <ZarGUIBase>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.Base.2.0.4\build\native\Microsoft.WindowsAppSDK.Base</ZarGUIBase>
+    <ZarGUIInteractive>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.InteractiveExperiences.2.1.9\build\native\Microsoft.WindowsAppSDK.InteractiveExperiences</ZarGUIInteractive>
+    <ZarGUIFoundation>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.Foundation.2.3.12\build\native\Microsoft.WindowsAppSDK.Foundation</ZarGUIFoundation>
+    <ZarGUIWebView2>$(ZarGUIPackagesDir)Microsoft.Web.WebView2.1.0.3719.77\build\native\Microsoft.Web.WebView2</ZarGUIWebView2>
+    <ZarGUIWinUI>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.WinUI.2.3.9\build\native\Microsoft.WindowsAppSDK.WinUI</ZarGUIWinUI>
+    <ZarGUIDWrite>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.DWrite.2.1.0\build\Microsoft.WindowsAppSDK.DWrite</ZarGUIDWrite>
+    <ZarGUIRuntime>$(ZarGUIPackagesDir)Microsoft.WindowsAppSDK.Runtime.2.5.1\build\native\Microsoft.WindowsAppSDK.Runtime</ZarGUIRuntime>
   </PropertyGroup>
-  <Import Project="$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.props" Condition="Exists('$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.props')" />
-  <Import Project="$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.props" Condition="Exists('$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.props')" />
-  <Import Project="$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.props" Condition="Exists('$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.props')" />
+  <Import Project="$(ZarGUICppWinRT).props" Condition="Exists('$(ZarGUICppWinRT).props')" />
+  <Import Project="$(ZarGUIBuildTools).props" Condition="Exists('$(ZarGUIBuildTools).props')" />
+  <Import Project="$(ZarGUIBuildToolsMsix).props" Condition="Exists('$(ZarGUIBuildToolsMsix).props')" />
+  <Import Project="$(ZarGUIBase).props" Condition="Exists('$(ZarGUIBase).props')" />
+  <Import Project="$(ZarGUIInteractive).props" Condition="Exists('$(ZarGUIInteractive).props')" />
+  <Import Project="$(ZarGUIFoundation).props" Condition="Exists('$(ZarGUIFoundation).props')" />
+  <Import Project="$(ZarGUIWinUI).props" Condition="Exists('$(ZarGUIWinUI).props')" />
+  <Import Project="$(ZarGUIDWrite).props" Condition="Exists('$(ZarGUIDWrite).props')" />
+  <Import Project="$(ZarGUIRuntime).props" Condition="Exists('$(ZarGUIRuntime).props')" />
 
   <PropertyGroup Label="Globals">
     <CppWinRTOptimized>true</CppWinRTOptimized>
@@ -36,6 +50,8 @@
     <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
     <WindowsAppSdkBootstrapInitialize>true</WindowsAppSdkBootstrapInitialize>
     <WindowsAppSDKBootstrapAutoInitializeOptions_OnNoMatch_ShowUI>true</WindowsAppSDKBootstrapAutoInitializeOptions_OnNoMatch_ShowUI>
+    <!-- WinUI's WebView2 control is unused: keep its metadata for the build, but don't ship Microsoft.Web.WebView2.Core.dll. -->
+    <WebView2EnableCsWinRTProjectionExcludeCoreRef>true</WebView2EnableCsWinRTProjectionExcludeCoreRef>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
 
@@ -152,13 +168,19 @@
 
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="$(ZarGUIWebView2Dir)Microsoft.Web.WebView2.targets" Condition="Exists('$(ZarGUIWebView2Dir)Microsoft.Web.WebView2.targets')" />
-    <Import Project="$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.targets" Condition="Exists('$(ZarGUICppWinRTDir)Microsoft.Windows.CppWinRT.targets')" />
-    <Import Project="$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.targets" Condition="Exists('$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.targets')" />
-    <Import Project="$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.targets" Condition="Exists('$(ZarGUISDKBuildToolsDir)Microsoft.Windows.SDK.BuildTools.targets')" />
+    <Import Project="$(ZarGUICppWinRT).targets" Condition="Exists('$(ZarGUICppWinRT).targets')" />
+    <Import Project="$(ZarGUIBuildTools).targets" Condition="Exists('$(ZarGUIBuildTools).targets')" />
+    <Import Project="$(ZarGUIBuildToolsMsix).targets" Condition="Exists('$(ZarGUIBuildToolsMsix).targets')" />
+    <Import Project="$(ZarGUIBase).targets" Condition="Exists('$(ZarGUIBase).targets')" />
+    <Import Project="$(ZarGUIInteractive).targets" Condition="Exists('$(ZarGUIInteractive).targets')" />
+    <Import Project="$(ZarGUIFoundation).targets" Condition="Exists('$(ZarGUIFoundation).targets')" />
+    <Import Project="$(ZarGUIWebView2).targets" Condition="Exists('$(ZarGUIWebView2).targets')" />
+    <Import Project="$(ZarGUIWinUI).targets" Condition="Exists('$(ZarGUIWinUI).targets')" />
+    <Import Project="$(ZarGUIDWrite).targets" Condition="Exists('$(ZarGUIDWrite).targets')" />
+    <Import Project="$(ZarGUIRuntime).targets" Condition="Exists('$(ZarGUIRuntime).targets')" />
   </ImportGroup>
   <Target Name="CheckPackages" BeforeTargets="PrepareForBuild">
-    <Error Condition="!Exists('$(ZarGUIWindowsAppSDKDir)Microsoft.WindowsAppSDK.props')"
+    <Error Condition="!Exists('$(ZarGUIWinUI).props') or !Exists('$(ZarGUIFoundation).props')"
            Text="NuGet packages are missing. Run: nuget restore windows\ZarGUI\packages.config -PackagesDirectory windows\packages" />
     <Error Condition="'$(ZarpackLib)' == '' or '$(ZstdLib)' == ''"
            Text="Pass the core libraries: /p:ZarpackLib=...\zarpack.lib /p:ZstdLib=...\zstd_static.lib (scripts\build-windows.ps1 does this)." />

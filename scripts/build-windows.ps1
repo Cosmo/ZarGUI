@@ -1,5 +1,5 @@
 # Builds the Windows app (WinUI 3, C++) into build\windows\<arch>\ and zips it to
-# build\ZarGUI-Windows-<arch>.zip. The app uses the Windows App Runtime 1.7 installed on the PC
+# build\ZarGUI-Windows-<arch>.zip. The app uses the Windows App Runtime (2.x) installed on the PC
 # and offers to install it on first start if it is missing.
 # Needs Visual Studio 2022 with C++ and Windows App SDK C++ tools, CMake and nuget
 # (scripts\setup-windows.ps1 installs them).

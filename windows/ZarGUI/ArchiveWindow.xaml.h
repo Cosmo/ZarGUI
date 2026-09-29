@@ -40,8 +40,9 @@ struct ArchiveWindow : ArchiveWindowT<ArchiveWindow> {
     void OnSelectionChanged(IInspectable const &sender,
                             Microsoft::UI::Xaml::Controls::SelectionChangedEventArgs const &e);
     void OnMenuOpening(IInspectable const &sender, IInspectable const &e);
-    void OnDragItemsStarting(IInspectable const &sender,
-                             Microsoft::UI::Xaml::Controls::DragItemsStartingEventArgs const &e);
+    void OnListPointerPressed(IInspectable const &sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const &e);
+    void OnListPointerMoved(IInspectable const &sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const &e);
+    void OnListPointerReleased(IInspectable const &sender, Microsoft::UI::Xaml::Input::PointerRoutedEventArgs const &e);
 
 private:
     struct Extraction {
@@ -57,6 +58,8 @@ private:
     void GoUp();
     void OpenSelected();
     std::vector<size_t> Selection();
+    static ZarGUI::ArchiveItem ItemAt(IInspectable const &source);
+    void StartDragOut();
     void UpdateCommands();
     void ShowResult(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const &title,
                     hstring const &message, std::wstring reveal);
@@ -71,6 +74,8 @@ private:
     int64_t folder_ = -1; // -1: the archive's top level
     std::vector<int64_t> crumbs_;
     ShellIcons icons_;
+    ZarGUI::ArchiveItem pressedItem_{nullptr}; // a drag out may start from here
+    Windows::Foundation::Point pressedAt_{};
 
     Job job_;
     Extraction extraction_;

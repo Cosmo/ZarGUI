@@ -303,7 +303,13 @@ bool DragArchiveEntries(HWND window, const std::shared_ptr<Archive> &archive, co
 
     auto *data = new VirtualFiles(archive, std::move(items));
     DWORD effect = DROPEFFECT_NONE;
-    SHDoDragDrop(window, data, nullptr, DROPEFFECT_COPY, &effect);
+    HRESULT hr = SHDoDragDrop(window, data, nullptr, DROPEFFECT_COPY, &effect);
     data->Release();
+    if (FAILED(hr)) {
+        wchar_t code[16];
+        swprintf_s(code, L"0x%08X", static_cast<unsigned>(hr));
+        error = std::wstring(L"Windows couldn’t start the drag (error ") + code + L"). Use Extract instead.";
+        return false;
+    }
     return true;
 }
