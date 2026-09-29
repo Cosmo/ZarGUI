@@ -19,6 +19,7 @@ jobs:
   windows:
     runs-on: windows-latest
     strategy:
+      fail-fast: false
       matrix: { arch: [x64, arm64] }
     steps:
       - uses: actions/checkout@v4

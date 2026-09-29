@@ -68,7 +68,8 @@ if(WIN32)
     PRIVATE ${zarchive_src_SOURCE_DIR}/include ${zstd_SOURCE_DIR}/lib)
   target_compile_definitions(zarpack_dll PRIVATE ZARPACK_SHARED ZARPACK_BUILDING)
   target_link_libraries(zarpack_dll PRIVATE libzstd_static)
-  set_target_properties(zarpack_dll PROPERTIES OUTPUT_NAME zarpack)
+  # The import library gets its own name so it doesn't overwrite the static zarpack.lib.
+  set_target_properties(zarpack_dll PROPERTIES OUTPUT_NAME zarpack ARCHIVE_OUTPUT_NAME zarpack_dll)
 endif()
 
 include(CTest)
