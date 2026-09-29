@@ -1,0 +1,31 @@
+name: build
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Core tests
+        run: |
+          cmake -S . -B build/core -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build/core
+          ctest --test-dir build/core --output-on-failure
+      - name: Build app
+        run: ./scripts/build-macos.sh
+      - uses: actions/upload-artifact@v4
+        with: { name: ZarGUI-macOS, path: build/macos/ZarGUI.app }
+
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix: { arch: [x64, arm64] }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with: { dotnet-version: 8.0.x }
+      - name: Build
+        shell: pwsh
+        run: ./scripts/build-windows.ps1 -Arch ${{ matrix.arch }}
+      - uses: actions/upload-artifact@v4
+        with: { name: "ZarGUI-Windows-${{ matrix.arch }}", path: "build/ZarGUI-Windows-${{ matrix.arch }}.zip", compression-level: 0 }

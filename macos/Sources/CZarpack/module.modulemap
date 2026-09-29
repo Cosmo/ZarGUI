@@ -1,0 +1,6 @@
+module CZarpack [system] {
+    header "../../../core/include/zarpack.h"
+    link "zarpack"
+    link "c++"
+    export *
+}

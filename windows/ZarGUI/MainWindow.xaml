@@ -1,0 +1,109 @@
+<Window
+    x:Class="ZarGUI.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid x:Name="Root" Padding="16" RowSpacing="12">
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="O" Modifiers="Control" Invoked="OnChooseFoldersAccelerator" />
+        </Grid.KeyboardAccelerators>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Drop zone -->
+        <Grid x:Name="DropZone" AllowDrop="True" MinHeight="120"
+              DragOver="OnDragOver" DragLeave="OnDragLeave" Drop="OnDrop">
+            <Rectangle x:Name="DropFill" RadiusX="8" RadiusY="8" Visibility="Collapsed"
+                       Fill="{ThemeResource SubtleFillColorSecondaryBrush}" />
+            <Rectangle RadiusX="8" RadiusY="8" StrokeThickness="2" StrokeDashArray="4 3"
+                       Stroke="{ThemeResource TextFillColorTertiaryBrush}" />
+            <Rectangle x:Name="DropStrokeActive" RadiusX="8" RadiusY="8" StrokeThickness="2"
+                       StrokeDashArray="4 3" Visibility="Collapsed"
+                       Stroke="{ThemeResource AccentFillColorDefaultBrush}" />
+
+            <!-- Idle -->
+            <StackPanel x:Name="IdlePanel" Spacing="8" Padding="16"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE838;" FontSize="36"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                          AutomationProperties.AccessibilityView="Raw" />
+                <TextBlock Text="Drop a folder to create a .zar archive"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           TextAlignment="Center" TextWrapping="Wrap" />
+                <Button Content="Choose folder…" HorizontalAlignment="Center"
+                        Click="OnChooseFolders" />
+            </StackPanel>
+
+            <!-- Packing -->
+            <StackPanel x:Name="PackingPanel" Spacing="8" Padding="16" Visibility="Collapsed"
+                        HorizontalAlignment="Stretch" VerticalAlignment="Center">
+                <TextBlock x:Name="PackingTitle" Style="{StaticResource BodyStrongTextBlockStyle}"
+                           TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <ProgressBar x:Name="Bar" Minimum="0" Maximum="1" IsIndeterminate="True"
+                             AutomationProperties.Name="Archiving progress" />
+                <TextBlock x:Name="PackingFile" Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+                <TextBlock x:Name="QueueText" Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextAlignment="Center" Visibility="Collapsed" />
+                <Button Content="Cancel" HorizontalAlignment="Center" Click="OnCancel">
+                    <Button.KeyboardAccelerators>
+                        <KeyboardAccelerator Key="Escape" />
+                    </Button.KeyboardAccelerators>
+                </Button>
+            </StackPanel>
+
+            <!-- Done -->
+            <StackPanel x:Name="DonePanel" Spacing="8" Padding="16" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE930;" FontSize="36"
+                          Foreground="{ThemeResource SystemFillColorSuccessBrush}"
+                          AutomationProperties.AccessibilityView="Raw" />
+                <TextBlock x:Name="DoneTitle" Style="{StaticResource BodyStrongTextBlockStyle}"
+                           TextAlignment="Center" TextWrapping="Wrap" />
+                <TextBlock Text="Drop another folder to continue."
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextAlignment="Center" />
+                <Button Content="Show in File Explorer" HorizontalAlignment="Center"
+                        Click="OnShowInExplorer" />
+            </StackPanel>
+
+            <!-- Failed -->
+            <StackPanel x:Name="FailedPanel" Spacing="8" Padding="16" Visibility="Collapsed"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE7BA;" FontSize="36"
+                          Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                          AutomationProperties.AccessibilityView="Raw" />
+                <TextBlock Text="Couldn’t create the archive"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           TextAlignment="Center" />
+                <TextBlock x:Name="FailedText" TextWrapping="Wrap" TextAlignment="Center"
+                           IsTextSelectionEnabled="True"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Output row -->
+        <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Save in:" VerticalAlignment="Center" />
+            <TextBlock x:Name="OutputText" Grid.Column="1" VerticalAlignment="Center"
+                       Text="Next to the original folder"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       TextTrimming="CharacterEllipsis" />
+            <Button x:Name="ResetButton" Grid.Column="2" Content="Reset"
+                    Visibility="Collapsed" Click="OnResetOutput" />
+            <Button x:Name="ChooseOutputButton" Grid.Column="3" Content="Choose…"
+                    Click="OnChooseOutput" />
+        </Grid>
+    </Grid>
+</Window>
