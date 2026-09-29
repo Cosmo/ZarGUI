@@ -97,7 +97,7 @@ void ArchiveWindow::OpenSelected() {
     if (selection.size() == 1 && archive_->entries()[selection[0]].isDir) Navigate(static_cast<int64_t>(selection[0]));
 }
 
-std::vector<size_t> ArchiveWindow::Selection() const {
+std::vector<size_t> ArchiveWindow::Selection() {
     std::vector<size_t> selection;
     for (auto const &item : List().SelectedItems())
         selection.push_back(static_cast<size_t>(item.as<ZarGUI::ArchiveItem>().Index()));

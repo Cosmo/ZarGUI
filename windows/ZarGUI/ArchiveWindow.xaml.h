@@ -56,7 +56,7 @@ private:
     void Navigate(int64_t folder);
     void GoUp();
     void OpenSelected();
-    std::vector<size_t> Selection() const;
+    std::vector<size_t> Selection();
     void UpdateCommands();
     void ShowResult(Microsoft::UI::Xaml::Controls::InfoBarSeverity severity, hstring const &title,
                     hstring const &message, std::wstring reveal);

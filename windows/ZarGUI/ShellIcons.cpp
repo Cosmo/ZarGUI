@@ -2,6 +2,7 @@
 
 #include "ShellIcons.h"
 
+#include <commctrl.h>
 #include <commoncontrols.h>
 #include <shellapi.h>
 #include <shlwapi.h>
