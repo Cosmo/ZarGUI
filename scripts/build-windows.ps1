@@ -35,7 +35,7 @@ function Build-One([string]$Target) {
     # The app.
     $obj = Join-Path $b "windows-app-$Target\obj\"
     $bin = Join-Path $b "windows-app-$Target\bin\"
-    & $msbuild $project /m /nologo /v:minimal /p:Configuration=Release /p:Platform=$platform `
+    & $msbuild $project /m /nologo /v:minimal /p:Configuration=Release /p:Platform=$platform /p:CppWinRTVerbosity=high `
         "/p:IntDir=$obj" "/p:OutDir=$bin" `
         "/p:ZarpackLib=$core\Release\zarpack.lib" "/p:ZstdLib=$core\_deps\zstd-build\lib\Release\zstd_static.lib"
     if ($LASTEXITCODE) { throw "App build failed ($Target)" }
