@@ -183,7 +183,7 @@ void MainWindow::Layout() {
     int total = buttons ? buttonHeight : -gap;
     for (auto &item : items) total += item.height + gap;
 
-    int y = zone.top + std::max(pad, (zone.bottom - zone.top - total) / 2);
+    int y = zone.top + std::max<int>(pad, (zone.bottom - zone.top - total) / 2);
     for (auto &item : items) {
         MoveWindow(item.hwnd, zone.left + pad, y, width, item.height, TRUE);
         y += item.height + gap;
