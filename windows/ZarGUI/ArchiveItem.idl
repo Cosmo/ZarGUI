@@ -1,0 +1,13 @@
+namespace ZarGUI
+{
+    /// One file or folder shown in an archive window.
+    runtimeclass ArchiveItem
+    {
+        UInt64 Index { get; };
+        String Name { get; };
+        String Size { get; };
+        String Kind { get; };
+        Boolean IsFolder { get; };
+        Microsoft.UI.Xaml.Media.ImageSource Icon { get; };
+    }
+}

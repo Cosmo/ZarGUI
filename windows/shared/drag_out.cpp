@@ -1,32 +1,13 @@
-#include "drag_drop.hpp"
+#include "drag_out.hpp"
 
 #include "archive.hpp"
+#include "common.hpp"
 
-#include <shellapi.h>
 #include <shlobj.h>
 #include <shobjidl.h>
 
 
 namespace {
-
-std::vector<std::wstring> DroppedPaths(IDataObject *data) {
-    std::vector<std::wstring> paths;
-    FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
-    STGMEDIUM medium{};
-    if (FAILED(data->GetData(&format, &medium))) return paths;
-    auto drop = static_cast<HDROP>(GlobalLock(medium.hGlobal));
-    if (drop) {
-        UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
-        for (UINT i = 0; i < count; i++) {
-            std::wstring path(DragQueryFileW(drop, i, nullptr, 0) + 1, L'\0');
-            path.resize(DragQueryFileW(drop, i, path.data(), static_cast<UINT>(path.size())));
-            paths.push_back(path);
-        }
-        GlobalUnlock(medium.hGlobal);
-    }
-    ReleaseStgMedium(&medium);
-    return paths;
-}
 
 HGLOBAL CopyGlobal(HGLOBAL source) {
     SIZE_T size = GlobalSize(source);
@@ -303,62 +284,6 @@ private:
 };
 
 } // namespace
-
-FileDropTarget::FileDropTarget(HWND window, DropHandler drop) : window_(window), drop_(std::move(drop)) {
-    if (FAILED(CoCreateInstance(CLSID_DragDropHelper, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&helper_))))
-        helper_ = nullptr;
-}
-
-FileDropTarget::~FileDropTarget() {
-    if (helper_) helper_->Release();
-}
-
-HRESULT FileDropTarget::QueryInterface(REFIID riid, void **object) {
-    if (riid == IID_IUnknown || riid == IID_IDropTarget) {
-        *object = static_cast<IDropTarget *>(this);
-        AddRef();
-        return S_OK;
-    }
-    *object = nullptr;
-    return E_NOINTERFACE;
-}
-
-ULONG FileDropTarget::AddRef() { return InterlockedIncrement(&refs_); }
-
-ULONG FileDropTarget::Release() {
-    ULONG refs = InterlockedDecrement(&refs_);
-    if (refs == 0) delete this;
-    return refs;
-}
-
-HRESULT FileDropTarget::DragEnter(IDataObject *data, DWORD, POINTL point, DWORD *effect) {
-    FORMATETC format{CF_HDROP, nullptr, DVASPECT_CONTENT, -1, TYMED_HGLOBAL};
-    accepts_ = data->QueryGetData(&format) == S_OK;
-    *effect = accepts_ ? DROPEFFECT_COPY : DROPEFFECT_NONE;
-    POINT pt{point.x, point.y};
-    if (helper_) helper_->DragEnter(window_, data, &pt, *effect);
-    return S_OK;
-}
-
-HRESULT FileDropTarget::DragOver(DWORD, POINTL point, DWORD *effect) {
-    *effect = accepts_ ? DROPEFFECT_COPY : DROPEFFECT_NONE;
-    POINT pt{point.x, point.y};
-    if (helper_) helper_->DragOver(&pt, *effect);
-    return S_OK;
-}
-
-HRESULT FileDropTarget::DragLeave() {
-    if (helper_) helper_->DragLeave();
-    return S_OK;
-}
-
-HRESULT FileDropTarget::Drop(IDataObject *data, DWORD, POINTL point, DWORD *effect) {
-    *effect = accepts_ ? DROPEFFECT_COPY : DROPEFFECT_NONE;
-    POINT pt{point.x, point.y};
-    if (helper_) helper_->Drop(data, &pt, *effect);
-    if (accepts_) drop_(DroppedPaths(data));
-    return S_OK;
-}
 
 bool DragArchiveEntries(HWND window, const std::shared_ptr<Archive> &archive, const std::vector<size_t> &roots,
                         std::wstring &error) {

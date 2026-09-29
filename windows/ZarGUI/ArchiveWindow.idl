@@ -1,0 +1,8 @@
+namespace ZarGUI
+{
+    [default_interface]
+    runtimeclass ArchiveWindow : Microsoft.UI.Xaml.Window
+    {
+        ArchiveWindow();
+    }
+}

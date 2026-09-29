@@ -1,4 +1,5 @@
-# Installs whatever is missing (VS 2022 Build Tools with C++ incl. ARM64, and CMake) via winget,
+# Installs whatever is missing (VS 2022 Build Tools with C++ incl. ARM64 and the Windows App SDK
+# C++ tools, CMake, nuget) via winget,
 # then runs the build. Windows may show an admin (UAC) prompt for the Visual Studio install.
 # Usage: powershell -ExecutionPolicy Bypass -File scripts\setup-windows.ps1 [-Arch x64|arm64|both]
 param([ValidateSet('x64','arm64','both')][string]$Arch = 'both')
@@ -29,7 +30,7 @@ $needArm = $Arch -ne 'x64'
 $haveVC = Has-Component 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64'
 $haveArm = -not $needArm -or (Has-Component 'Microsoft.VisualStudio.Component.VC.Tools.ARM64')
 if (-not ($haveVC -and $haveArm)) {
-    $ov = '--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --includeRecommended'
+    $ov = '--wait --passive --norestart --add Microsoft.VisualStudio.Workload.VCTools --add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Workload.UniversalBuildTools --add Microsoft.VisualStudio.ComponentGroup.UWP.VC.BuildTools --includeRecommended'
     Install 'Microsoft.VisualStudio.2022.BuildTools' $ov
 } else { Write-Host 'Visual Studio C++ tools: OK' }
 
@@ -37,7 +38,9 @@ if (-not ($haveVC -and $haveArm)) {
 Refresh-Path
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) { Install 'Kitware.CMake' $null; Refresh-Path } else { Write-Host 'CMake: OK' }
 
-foreach ($tool in @('cmake')) {
+if (-not (Get-Command nuget -ErrorAction SilentlyContinue)) { Install 'Microsoft.NuGet' $null; Refresh-Path } else { Write-Host 'nuget: OK' }
+
+foreach ($tool in @('cmake', 'nuget')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
         throw "$tool was installed but isn't on PATH yet. Close this window, open a new PowerShell, and run the script again."
     }

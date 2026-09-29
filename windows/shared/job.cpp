@@ -1,18 +1,21 @@
 #include "job.hpp"
 
+#include "common.hpp"
+
 Job::~Job() {
     cancel_ = true;
     if (thread_.joinable()) thread_.join();
 }
 
-void Job::Start(HWND window, Work work) {
-    window_ = window;
+void Job::Start(Work work, Notify progress, Notify done) {
     cancel_ = false;
+    progressPending_ = false;
     progress_ = {};
     message_.clear();
-    thread_ = std::thread([this, work = std::move(work)] {
+    notifyProgress_ = std::move(progress);
+    thread_ = std::thread([this, work = std::move(work), done = std::move(done)] {
         status_ = work(&Job::OnProgress, this, message_);
-        PostMessageW(window_, WM_APP_DONE, 0, 0);
+        done();
     });
 }
 
@@ -23,7 +26,7 @@ zarpack_status Job::Finish(std::wstring &message) {
 }
 
 Job::Progress Job::Latest() {
-    progressPosted_ = false;
+    progressPending_ = false;
     std::lock_guard lock(mutex_);
     return progress_;
 }
@@ -36,7 +39,6 @@ int Job::OnProgress(const zarpack_progress *progress, void *self) {
         job->progress_.total = progress->bytes_total;
         job->progress_.file = ToWide(progress->current_file ? progress->current_file : "");
     }
-    // One pending message at a time; the window reads the latest state.
-    if (!job->progressPosted_.exchange(true)) PostMessageW(job->window_, WM_APP_PROGRESS, 0, 0);
+    if (!job->progressPending_.exchange(true)) job->notifyProgress_();
     return job->cancel_ ? 1 : 0;
 }

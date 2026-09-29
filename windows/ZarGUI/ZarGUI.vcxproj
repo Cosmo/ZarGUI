@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- WinUI 3 app (C++/WinRT), unpackaged and framework-dependent: it uses the Windows App Runtime
+     installed on the PC. Build with scripts\build-windows.ps1, which builds the core first and passes
+     its libraries in as ZarpackLib and ZstdLib. -->
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PackagesDir>$(MSBuildThisFileDirectory)..\packages\</PackagesDir>
+    <CppWinRTPackage>$(PackagesDir)Microsoft.Windows.CppWinRT.2.0.250303.1\build\native\</CppWinRTPackage>
+    <WindowsAppSDKPackage>$(PackagesDir)Microsoft.WindowsAppSDK.1.7.260224002\build\native\</WindowsAppSDKPackage>
+    <SDKBuildToolsPackage>$(PackagesDir)Microsoft.Windows.SDK.BuildTools.10.0.26100.9169\build\</SDKBuildToolsPackage>
+    <WebView2Package>$(PackagesDir)Microsoft.Web.WebView2.1.0.2903.40\build\native\</WebView2Package>
+  </PropertyGroup>
+  <Import Project="$(CppWinRTPackage)Microsoft.Windows.CppWinRT.props" Condition="Exists('$(CppWinRTPackage)Microsoft.Windows.CppWinRT.props')" />
+  <Import Project="$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.props" Condition="Exists('$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.props')" />
+  <Import Project="$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.props" Condition="Exists('$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.props')" />
+
+  <PropertyGroup Label="Globals">
+    <CppWinRTOptimized>true</CppWinRTOptimized>
+    <CppWinRTRootNamespaceAutoMerge>true</CppWinRTRootNamespaceAutoMerge>
+    <MinimalCoreWin>true</MinimalCoreWin>
+    <ProjectGuid>{6F2A9C1E-3B7D-4E58-9A21-5C0D8E4F7B36}</ProjectGuid>
+    <ProjectName>ZarGUI</ProjectName>
+    <RootNamespace>ZarGUI</RootNamespace>
+    <DefaultLanguage>en-US</DefaultLanguage>
+    <MinimumVisualStudioVersion>16.0</MinimumVisualStudioVersion>
+    <AppContainerApplication>false</AppContainerApplication>
+    <AppxPackage>false</AppxPackage>
+    <ApplicationType>Windows Store</ApplicationType>
+    <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <!-- Unpackaged; the bootstrapper finds the installed Windows App Runtime and offers to install it if missing. -->
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained>
+    <WindowsAppSdkBootstrapInitialize>true</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSDKBootstrapAutoInitializeOptions_OnNoMatch_ShowUI>true</WindowsAppSDKBootstrapAutoInitializeOptions_OnNoMatch_ShowUI>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <DesktopCompatible>true</DesktopCompatible>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PrecompiledHeader>Use</PrecompiledHeader>
+      <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderOutputFile>$(IntDir)pch.pch</PrecompiledHeaderOutputFile>
+      <WarningLevel>Level4</WarningLevel>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalOptions>%(AdditionalOptions) /bigobj /utf-8</AdditionalOptions>
+      <PreprocessorDefinitions>NOMINMAX;NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>$(MSBuildThisFileDirectory)..\..\core\include;$(MSBuildThisFileDirectory)..\shared;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- Hybrid CRT: static C++ runtime, the Universal CRT that ships with Windows. No redistributable needed. -->
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <IgnoreSpecificDefaultLibraries>libucrt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <AdditionalDependencies>ucrt.lib;$(ZarpackLib);$(ZstdLib);shlwapi.lib;ole32.lib;shell32.lib;uuid.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <Manifest Include="app.manifest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ApplicationDefinition Include="App.xaml" />
+    <Page Include="MainWindow.xaml" />
+    <Page Include="ArchiveWindow.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Midl Include="MainWindow.idl">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Midl>
+    <Midl Include="ArchiveWindow.idl">
+      <DependentUpon>ArchiveWindow.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Midl>
+    <Midl Include="ArchiveItem.idl" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="pch.h" />
+    <ClInclude Include="App.xaml.h">
+      <DependentUpon>App.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="MainWindow.xaml.h">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="ArchiveWindow.xaml.h">
+      <DependentUpon>ArchiveWindow.xaml</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="ArchiveItem.h">
+      <DependentUpon>ArchiveItem.idl</DependentUpon>
+    </ClInclude>
+    <ClInclude Include="ShellIcons.h" />
+    <ClInclude Include="WindowHelpers.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="pch.cpp">
+      <PrecompiledHeader>Create</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="App.xaml.cpp">
+      <DependentUpon>App.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="MainWindow.xaml.cpp">
+      <DependentUpon>MainWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="ArchiveWindow.xaml.cpp">
+      <DependentUpon>ArchiveWindow.xaml</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="ArchiveItem.cpp">
+      <DependentUpon>ArchiveItem.idl</DependentUpon>
+    </ClCompile>
+    <ClCompile Include="ShellIcons.cpp" />
+    <ClCompile Include="WindowHelpers.cpp" />
+    <ClCompile Include="$(GeneratedFilesDir)module.g.cpp" />
+    <!-- Shared Windows code (no WinRT, no precompiled header). -->
+    <ClCompile Include="..\shared\common.cpp;..\shared\settings.cpp;..\shared\archive.cpp;..\shared\job.cpp;..\shared\drag_out.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(WebView2Package)Microsoft.Web.WebView2.targets" Condition="Exists('$(WebView2Package)Microsoft.Web.WebView2.targets')" />
+    <Import Project="$(CppWinRTPackage)Microsoft.Windows.CppWinRT.targets" Condition="Exists('$(CppWinRTPackage)Microsoft.Windows.CppWinRT.targets')" />
+    <Import Project="$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.targets" Condition="Exists('$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.targets')" />
+    <Import Project="$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.targets" Condition="Exists('$(SDKBuildToolsPackage)Microsoft.Windows.SDK.BuildTools.targets')" />
+  </ImportGroup>
+  <Target Name="CheckPackages" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('$(WindowsAppSDKPackage)Microsoft.WindowsAppSDK.props')"
+           Text="NuGet packages are missing. Run: nuget restore windows\ZarGUI\packages.config -PackagesDirectory windows\packages" />
+    <Error Condition="'$(ZarpackLib)' == '' or '$(ZstdLib)' == ''"
+           Text="Pass the core libraries: /p:ZarpackLib=...\zarpack.lib /p:ZstdLib=...\zstd_static.lib (scripts\build-windows.ps1 does this)." />
+  </Target>
+</Project>

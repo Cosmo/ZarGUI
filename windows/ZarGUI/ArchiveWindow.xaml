@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="ZarGUI.ArchiveWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ZarGUI">
+
+    <Grid x:Name="Root">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.KeyboardAccelerators>
+            <KeyboardAccelerator Key="Up" Modifiers="Menu" Invoked="OnUpAccelerator" />
+        </Grid.KeyboardAccelerators>
+
+        <Grid x:Name="AppTitleBar" Background="Transparent">
+            <StackPanel Orientation="Horizontal" Spacing="12" Margin="16,0,0,0" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE7B8;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                <TextBlock x:Name="TitleText" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+
+        <!-- Navigation and commands, like File Explorer -->
+        <Grid Grid.Row="1" Padding="8,0,8,4" ColumnSpacing="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <Button x:Name="UpButton" Style="{StaticResource IconButtonStyle}" Click="OnUp" IsEnabled="False"
+                    VerticalAlignment="Center" ToolTipService.ToolTip="Up (Alt+Up)" AutomationProperties.Name="Up">
+                <FontIcon Glyph="&#xE74A;" FontSize="16" />
+            </Button>
+            <Border Grid.Column="1" Padding="12,0" Height="36" VerticalAlignment="Center" CornerRadius="{StaticResource ControlCornerRadius}"
+                    Background="{ThemeResource ControlFillColorDefaultBrush}" BorderThickness="1"
+                    BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}">
+                <BreadcrumbBar x:Name="Breadcrumb" VerticalAlignment="Center" ItemClicked="OnBreadcrumbClicked"
+                               AutomationProperties.Name="Location" />
+            </Border>
+            <CommandBar Grid.Column="2" DefaultLabelPosition="Right" Background="Transparent"
+                        OverflowButtonVisibility="Collapsed" VerticalAlignment="Center">
+                <AppBarButton x:Name="ExtractSelectedButton" Label="Extract" IsEnabled="False" Click="OnExtractSelected"
+                              ToolTipService.ToolTip="Extract the selected items">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE896;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+                <AppBarButton x:Name="ExtractAllButton" Label="Extract all" IsEnabled="False" Click="OnExtractAll"
+                              ToolTipService.ToolTip="Extract everything into a new folder">
+                    <AppBarButton.Icon>
+                        <FontIcon Glyph="&#xE8B7;" />
+                    </AppBarButton.Icon>
+                </AppBarButton>
+            </CommandBar>
+        </Grid>
+
+        <!-- Column headers -->
+        <Grid Grid.Row="2" Padding="28,6,28,6" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="100" />
+                <ColumnDefinition Width="180" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Name" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Grid.Column="1" Text="Size" TextAlignment="Right" Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <TextBlock Grid.Column="2" Text="Type" Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </Grid>
+
+        <ListView x:Name="List" Grid.Row="3" Padding="8,0" SelectionMode="Extended" CanDragItems="True"
+                  DragItemsStarting="OnDragItemsStarting" DoubleTapped="OnDoubleTapped" RightTapped="OnRightTapped"
+                  SelectionChanged="OnSelectionChanged" KeyDown="OnListKeyDown"
+                  AutomationProperties.Name="Archive contents">
+            <ListView.ContextFlyout>
+                <MenuFlyout Opening="OnMenuOpening">
+                    <MenuFlyoutItem x:Name="OpenMenuItem" Text="Open" Click="OnOpenItem">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE8E5;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem x:Name="ExtractMenuItem" Text="Extract…" Click="OnExtractSelected">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE896;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuFlyout>
+            </ListView.ContextFlyout>
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:ArchiveItem">
+                    <Grid ColumnSpacing="12" Height="36">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="100" />
+                            <ColumnDefinition Width="180" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                            <Image Source="{x:Bind Icon}" Width="16" Height="16" />
+                            <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="{x:Bind Size}" TextAlignment="Right" VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        <TextBlock Grid.Column="2" Text="{x:Bind Kind}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+        <TextBlock x:Name="EmptyText" Grid.Row="3" Text="This folder is empty." Visibility="Collapsed"
+                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+        <!-- Progress, results and status -->
+        <StackPanel Grid.Row="4" Padding="16,4,16,12" Spacing="8">
+            <InfoBar x:Name="ProgressInfo" Title="Extracting" IsClosable="False" IsOpen="False" Severity="Informational">
+                <InfoBar.ActionButton>
+                    <Button Content="Cancel" Click="OnCancel" />
+                </InfoBar.ActionButton>
+                <InfoBar.Content>
+                    <StackPanel Spacing="4" Margin="0,0,0,12">
+                        <ProgressBar x:Name="ExtractProgress" IsIndeterminate="True" Minimum="0" Maximum="1"
+                                     AutomationProperties.Name="Extraction progress" />
+                        <TextBlock x:Name="ExtractFile" Style="{StaticResource CaptionTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                </InfoBar.Content>
+            </InfoBar>
+            <InfoBar x:Name="ResultBar" IsOpen="False" IsClosable="True">
+                <InfoBar.ActionButton>
+                    <Button x:Name="ShowInFolderButton" Content="Show in folder" Click="OnShowInFolder" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <TextBlock x:Name="StatusText" Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+    </Grid>
+</Window>

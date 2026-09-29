@@ -60,29 +60,6 @@ target_include_directories(zarpack
   PRIVATE ${zarchive_src_SOURCE_DIR}/include ${zstd_SOURCE_DIR}/lib)
 target_link_libraries(zarpack PRIVATE libzstd_static)
 
-# Windows app: one self-contained ZarGUI.exe (Win32, core linked statically).
-if(WIN32)
-  add_executable(ZarGUI WIN32
-    windows/src/main.cpp
-    windows/src/common.cpp
-    windows/src/window.cpp
-    windows/src/settings.cpp
-    windows/src/settings_dialog.cpp
-    windows/src/job.cpp
-    windows/src/archive.cpp
-    windows/src/drag_drop.cpp
-    windows/src/main_window.cpp
-    windows/src/archive_window.cpp
-    windows/ZarGUI.rc
-    windows/ZarGUI.manifest)
-  target_compile_definitions(ZarGUI PRIVATE UNICODE _UNICODE NOMINMAX)
-  target_link_libraries(ZarGUI PRIVATE zarpack libzstd_static
-    comctl32 shlwapi uxtheme ole32 shell32 uuid)
-  if(MSVC)
-    target_compile_options(ZarGUI PRIVATE /W4 /utf-8)
-  endif()
-endif()
-
 include(CTest)
 if(BUILD_TESTING)
   add_executable(zarpack_test core/tests/zarpack_test.cpp)
