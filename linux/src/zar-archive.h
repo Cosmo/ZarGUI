@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glib.h>
+#include <gio/gio.h>
 
 #include "zarpack.h"
 
