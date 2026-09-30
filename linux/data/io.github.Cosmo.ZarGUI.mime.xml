@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-zarchive">
+    <comment>ZArchive archive</comment>
+    <sub-class-of type="application/octet-stream"/>
+    <generic-icon name="package-x-generic"/>
+    <glob pattern="*.zar"/>
+  </mime-type>
+</mime-info>

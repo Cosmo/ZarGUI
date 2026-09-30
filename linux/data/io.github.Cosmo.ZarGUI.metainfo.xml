@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.Cosmo.ZarGUI</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>ZarGUI</name>
+  <summary>Create, browse and extract .zar archives</summary>
+  <description>
+    <p>
+      ZarGUI packs folders into ZArchive (.zar) files: read-only, zstd-compressed archives with random access.
+    </p>
+    <ul>
+      <li>Drop a folder to create an archive</li>
+      <li>Drop an archive to browse it and extract everything or just what you need</li>
+      <li>Drag files out of an archive into your file manager</li>
+      <li>System files like .DS_Store and Thumbs.db are skipped</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">io.github.Cosmo.ZarGUI.desktop</launchable>
+  <developer id="io.github.cosmo">
+    <name>ZarGUI contributors</name>
+  </developer>
+  <url type="homepage">https://github.com/Cosmo/ZarGUI</url>
+  <url type="bugtracker">https://github.com/Cosmo/ZarGUI/issues</url>
+  <content_rating type="oars-1.1"/>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <requires>
+    <display_length compare="ge">360</display_length>
+  </requires>
+  <provides>
+    <mediatype>application/x-zarchive</mediatype>
+  </provides>
+  <releases>
+    <release version="0.3.0" date="2026-09-30">
+      <description>
+        <p>First Linux release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

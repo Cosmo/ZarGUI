@@ -1,6 +1,6 @@
 # ZarGUI
 
-A small drag-and-drop utility for macOS and Windows that packs a folder into a
+A small drag-and-drop utility for macOS, Windows and Linux that packs a folder into a
 [ZArchive](https://github.com/Exzap/ZArchive) (`.zar`) file: a read-only, zstd-compressed archive
 with random access.
 
@@ -19,13 +19,18 @@ when an archive exists, compression, and extraction behavior can be changed in S
 
 ## Build
 
-The core is C++20 (`core/`), wrapped by a native UI on each platform: SwiftUI/AppKit on macOS (`macos/`), WinUI 3 (C++/WinRT) on Windows (`windows/`).
+The core is C++20 (`core/`), wrapped by a native UI on each platform: SwiftUI/AppKit on macOS (`macos/`), WinUI 3 (C++/WinRT) on Windows (`windows/`),
+GTK 4 + libadwaita on Linux (`linux/`).
 
 - **macOS** (Xcode, CMake, Ninja): `./scripts/build-macos.sh` produces `build/macos/ZarGUI.app` (universal, arm64 + x86_64).
 - **Windows:** run `scripts\build-windows.cmd`. It installs missing tools (Visual Studio C++ build tools with the
   Windows App SDK C++ tools, CMake, nuget) through winget, builds, and writes `build\ZarGUI-Windows-x64.zip` and
   `build\ZarGUI-Windows-arm64.zip`. The app uses the Windows App Runtime (2.x) and offers to install it on first start
   if the PC doesn't have it yet.
+- **Linux:** one Flatpak for all distributions:
+  `flatpak-builder --user --install build/flatpak linux/io.github.Cosmo.ZarGUI.json`.
+  For a quick native build (GTK 4.12+ and libadwaita 1.5+ development packages):
+  `cmake -S . -B build/linux -DZARGUI_LINUX_APP=ON && cmake --build build/linux`.
 - **Core tests:** `cmake -S . -B build/core && cmake --build build/core && ctest --test-dir build/core`
 
 Build output and downloaded dependencies stay in `build/`.

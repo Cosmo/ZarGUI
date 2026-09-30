@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=ZarGUI
+Comment=Create, browse and extract .zar archives
+Exec=zargui %U
+Icon=io.github.Cosmo.ZarGUI
+Terminal=false
+Type=Application
+Categories=Utility;Archiving;Compression;GTK;
+Keywords=zar;zarchive;archive;compress;extract;
+MimeType=application/x-zarchive;
+StartupNotify=true
+DBusActivatable=false

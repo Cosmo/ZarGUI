@@ -28,3 +28,28 @@ jobs:
         run: ./scripts/build-windows.ps1 -Arch ${{ matrix.arch }}
       - uses: actions/upload-artifact@v4
         with: { name: "ZarGUI-Windows-${{ matrix.arch }}", path: "build/windows/${{ matrix.arch }}" }
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install GTK 4 and libadwaita
+        run: sudo apt-get update && sudo apt-get install -y ninja-build libgtk-4-dev libadwaita-1-dev
+      - name: Build and test
+        run: |
+          cmake -S . -B build/linux -G Ninja -DCMAKE_BUILD_TYPE=Release -DZARGUI_LINUX_APP=ON
+          cmake --build build/linux
+          ctest --test-dir build/linux --output-on-failure
+
+  flatpak:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:gnome-49
+      options: --privileged
+    steps:
+      - uses: actions/checkout@v4
+      - uses: flathub-infra/flatpak-github-actions/flatpak-builder@master
+        with:
+          bundle: ZarGUI.flatpak
+          manifest-path: linux/io.github.Cosmo.ZarGUI.json
+          cache-key: flatpak-builder-${{ github.sha }}

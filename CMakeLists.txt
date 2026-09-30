@@ -60,6 +60,11 @@ target_include_directories(zarpack
   PRIVATE ${zarchive_src_SOURCE_DIR}/include ${zstd_SOURCE_DIR}/lib)
 target_link_libraries(zarpack PRIVATE libzstd_static)
 
+option(ZARGUI_LINUX_APP "Build the Linux (GTK 4 + libadwaita) app" OFF)
+if(ZARGUI_LINUX_APP)
+  add_subdirectory(linux)
+endif()
+
 include(CTest)
 if(BUILD_TESTING)
   add_executable(zarpack_test core/tests/zarpack_test.cpp)

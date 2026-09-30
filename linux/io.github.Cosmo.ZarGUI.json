@@ -1,0 +1,51 @@
+{
+    "id": "io.github.Cosmo.ZarGUI",
+    "runtime": "org.gnome.Platform",
+    "runtime-version": "49",
+    "sdk": "org.gnome.Sdk",
+    "command": "zargui",
+    "finish-args": [
+        "--share=ipc",
+        "--socket=wayland",
+        "--socket=fallback-x11",
+        "--device=dri",
+        "--filesystem=home",
+        "--filesystem=/media",
+        "--filesystem=/run/media",
+        "--filesystem=/mnt"
+    ],
+    "cleanup": ["/include", "/lib/pkgconfig", "/lib/cmake", "*.a"],
+    "modules": [
+        {
+            "name": "zargui",
+            "buildsystem": "cmake-ninja",
+            "config-opts": [
+                "-DCMAKE_BUILD_TYPE=Release",
+                "-DBUILD_TESTING=OFF",
+                "-DZARGUI_LINUX_APP=ON",
+                "-DFETCHCONTENT_FULLY_DISCONNECTED=ON",
+                "-DFETCHCONTENT_SOURCE_DIR_ZSTD=/run/build/zargui/deps/zstd",
+                "-DFETCHCONTENT_SOURCE_DIR_ZARCHIVE_SRC=/run/build/zargui/deps/zarchive"
+            ],
+            "sources": [
+                {
+                    "type": "dir",
+                    "path": "..",
+                    "skip": ["build", ".git", ".flatpak-builder", "windows/packages"]
+                },
+                {
+                    "type": "archive",
+                    "url": "https://github.com/facebook/zstd/releases/download/v1.5.7/zstd-1.5.7.tar.gz",
+                    "sha256": "eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3",
+                    "dest": "deps/zstd"
+                },
+                {
+                    "type": "git",
+                    "url": "https://github.com/Exzap/ZArchive.git",
+                    "commit": "965b66c8d67b6b7e30fd63b3b75aa91a99ff303b",
+                    "dest": "deps/zarchive"
+                }
+            ]
+        }
+    ]
+}

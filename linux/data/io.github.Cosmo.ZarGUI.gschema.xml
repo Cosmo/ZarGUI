@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="io.github.Cosmo.ZarGUI.ExistingArchive">
+    <value nick="ask" value="0"/>
+    <value nick="replace" value="1"/>
+    <value nick="keep-both" value="2"/>
+  </enum>
+  <enum id="io.github.Cosmo.ZarGUI.Compression">
+    <value nick="faster" value="0"/>
+    <value nick="standard" value="1"/>
+    <value nick="smaller" value="2"/>
+  </enum>
+  <enum id="io.github.Cosmo.ZarGUI.ExtractDestination">
+    <value nick="ask" value="0"/>
+    <value nick="next-to-archive" value="1"/>
+  </enum>
+
+  <schema id="io.github.Cosmo.ZarGUI" path="/io/github/Cosmo/ZarGUI/">
+    <key name="output-folder" type="s">
+      <default>''</default>
+      <summary>Folder for new archives</summary>
+      <description>Empty to save archives next to the original folder.</description>
+    </key>
+    <key name="existing-archive" enum="io.github.Cosmo.ZarGUI.ExistingArchive">
+      <default>'ask'</default>
+      <summary>What to do when the archive already exists</summary>
+    </key>
+    <key name="compression" enum="io.github.Cosmo.ZarGUI.Compression">
+      <default>'standard'</default>
+      <summary>Compression level</summary>
+    </key>
+    <key name="skip-system-files" type="b">
+      <default>true</default>
+      <summary>Skip system files such as .DS_Store and Thumbs.db</summary>
+    </key>
+    <key name="extract-destination" enum="io.github.Cosmo.ZarGUI.ExtractDestination">
+      <default>'ask'</default>
+      <summary>Where extracted files go</summary>
+    </key>
+    <key name="open-folder-after-extract" type="b">
+      <default>false</default>
+      <summary>Open the folder after extracting</summary>
+    </key>
+  </schema>
+</schemalist>
